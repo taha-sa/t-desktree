@@ -11,6 +11,8 @@ public partial class MainWindow : Window
     {
         DataContext = new MainWindowViewModel(new DialogService(), new WpfUiDispatcher(Dispatcher));
         InitializeComponent();
+        WindowStateService.Apply(this);
+        Closing += (_, _) => WindowStateService.Save(this);
         StateChanged += (_, _) => UpdateMaximizeInset();
         Loaded += (_, _) => UpdateMaximizeInset();
     }
