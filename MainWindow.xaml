@@ -1,0 +1,740 @@
+<Window x:Class="AmberTree.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:AmberTree"
+        xmlns:vm="clr-namespace:AmberTree.ViewModels"
+        xmlns:models="clr-namespace:AmberTree.Models"
+        xmlns:controls="clr-namespace:AmberTree.Controls"
+        xmlns:conv="clr-namespace:AmberTree.Converters"
+        mc:Ignorable="d"
+        Title="AmberTree — High Performance Disk Space Analyzer"
+        Icon="app.ico"
+        Height="820" Width="1340"
+        MinHeight="600" MinWidth="900"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource BgDarkBrush}"
+        Foreground="{StaticResource TextPrimaryBrush}">
+
+    <Window.DataContext>
+        <vm:MainWindowViewModel />
+    </Window.DataContext>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <!-- Header / App Brand -->
+            <RowDefinition Height="Auto" />
+            <!-- Toolbar / Ribbon -->
+            <RowDefinition Height="Auto" />
+            <!-- Main Content Views -->
+            <RowDefinition Height="*" />
+            <!-- Status & Telemetry Bar -->
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- ================= APP HEADER ================= -->
+        <Border Grid.Row="0" Background="#0A0A0D" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Padding="16,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Brand & Icon -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <!-- Amber Geometric Tree Icon -->
+                    <Border Width="36" Height="36" CornerRadius="8" Background="#16161D" BorderBrush="{StaticResource YellowElectricBrush}" BorderThickness="1.5" Margin="0,0,12,0">
+                        <Grid>
+                            <Path Data="M 18,6 L 26,16 L 22,16 L 28,24 L 20,24 L 20,30 L 16,30 L 16,24 L 8,24 L 14,16 L 10,16 Z"
+                                  Fill="{StaticResource YellowElectricBrush}"
+                                  Stretch="Uniform"
+                                  Margin="7" />
+                        </Grid>
+                    </Border>
+                    <StackPanel VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="AMBER" Foreground="{StaticResource YellowElectricBrush}" FontWeight="ExtraBold" FontSize="18" />
+                            <TextBlock Text="TREE" Foreground="#FFFFFF" FontWeight="ExtraBold" FontSize="18" />
+                            <Border Background="#2A2400" BorderBrush="{StaticResource YellowElectricBrush}" BorderThickness="1" CornerRadius="3" Margin="8,1,0,1" Padding="5,1">
+                                <TextBlock Text="PRO 1.0" Foreground="{StaticResource YellowElectricBrush}" FontSize="9" FontWeight="Bold" />
+                            </Border>
+                        </StackPanel>
+                        <TextBlock Text="Next-Gen Ultra-Fast Disk Space Analyzer" Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,1,0,0" />
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- Center: Telemetry Banner -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <Border Background="#121217" BorderBrush="#252530" BorderThickness="1" CornerRadius="6" Padding="12,5" Margin="6,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="TOTAL SIZE: " Foreground="{StaticResource TextMutedBrush}" FontSize="11" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding RootItem.Size, Converter={StaticResource SizeFormatter}}" Foreground="{StaticResource YellowElectricBrush}" FontWeight="Bold" FontSize="12" />
+                        </StackPanel>
+                    </Border>
+                    <Border Background="#121217" BorderBrush="#252530" BorderThickness="1" CornerRadius="6" Padding="12,5" Margin="6,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="FILES: " Foreground="{StaticResource TextMutedBrush}" FontSize="11" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding RootItem.FileCount, StringFormat={}{0:N0}}" Foreground="#FFFFFF" FontWeight="Bold" FontSize="12" />
+                        </StackPanel>
+                    </Border>
+                    <Border Background="#121217" BorderBrush="#252530" BorderThickness="1" CornerRadius="6" Padding="12,5" Margin="6,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="FOLDERS: " Foreground="{StaticResource TextMutedBrush}" FontSize="11" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding RootItem.FolderCount, StringFormat={}{0:N0}}" Foreground="#FFFFFF" FontWeight="Bold" FontSize="12" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- Right: Units Selector -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Unit:" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="12" />
+                    <Border Background="#14141B" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="4" Padding="2">
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton Content="Auto" IsChecked="True" GroupName="UnitsGroup"
+                                         Command="{Binding SetUnitModeCommand}" CommandParameter="Auto"
+                                         Style="{StaticResource UnitRadioStyle}" />
+                            <RadioButton Content="MB" GroupName="UnitsGroup"
+                                         Command="{Binding SetUnitModeCommand}" CommandParameter="MB"
+                                         Style="{StaticResource UnitRadioStyle}" />
+                            <RadioButton Content="GB" GroupName="UnitsGroup"
+                                         Command="{Binding SetUnitModeCommand}" CommandParameter="GB"
+                                         Style="{StaticResource UnitRadioStyle}" />
+                            <RadioButton Content="Bytes" GroupName="UnitsGroup"
+                                         Command="{Binding SetUnitModeCommand}" CommandParameter="Bytes"
+                                         Style="{StaticResource UnitRadioStyle}" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ================= TOOLBAR & CONTROLS ================= -->
+        <Border Grid.Row="1" Background="#111116" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Padding="16,8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <!-- Drive Picker & Path -->
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <!-- Action Buttons -->
+                    <ColumnDefinition Width="Auto" />
+                    <!-- Search & Filter -->
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Drives dropdown & Path input -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
+                    <TextBlock Text="Drive:" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,6,0" FontSize="12" FontWeight="SemiBold" />
+                    <ComboBox ItemsSource="{Binding Drives}"
+                              SelectedItem="{Binding SelectedDrive}"
+                              Width="150"
+                              Height="32"
+                              Margin="0,0,8,0"
+                              Background="#15151D"
+                              Foreground="#FFFFFF"
+                              BorderBrush="#333342"
+                              VerticalContentAlignment="Center">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="💾 " />
+                                    <TextBlock Text="{Binding DisplayTitle}" FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding AvailableFreeSpace, Converter={StaticResource SizeFormatter}, StringFormat=' ({0} free)'}" Foreground="{StaticResource TextMutedBrush}" FontSize="10" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                </StackPanel>
+
+                <!-- Path Display and Browse -->
+                <Grid Grid.Column="1" VerticalAlignment="Center" Margin="0,0,12,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBox Text="{Binding SelectedPath, UpdateSourceTrigger=PropertyChanged}"
+                             Height="32"
+                             FontSize="12"
+                             VerticalContentAlignment="Center"
+                             Padding="10,0" />
+                    <Button Grid.Column="1" Content="📂 Browse..."
+                            Command="{Binding BrowseFolderCommand}"
+                            Height="32"
+                            Margin="6,0,0,0"
+                            Padding="12,0" />
+                </Grid>
+
+                <!-- Scan Buttons & Export -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,14,0">
+                    <!-- Start Scan -->
+                    <Button Content="▶ SCAN"
+                            Command="{Binding StartScanCommand}"
+                            Style="{StaticResource AccentButtonStyle}"
+                            Height="32"
+                            Padding="16,0"
+                            FontWeight="Bold"
+                            Margin="0,0,8,0" />
+
+                    <!-- Stop Scan -->
+                    <Button Content="⏹ STOP"
+                            Command="{Binding StopScanCommand}"
+                            Height="32"
+                            Padding="12,0"
+                            FontWeight="Bold"
+                            Margin="0,0,8,0" />
+
+                    <!-- Export Dropdown -->
+                    <Button Content="📥 Export ▾" Height="32" Padding="12,0" Margin="0,0,8,0">
+                        <Button.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Export to CSV Spreadsheet..." Command="{Binding ExportCsvCommand}" />
+                                <MenuItem Header="Export to JSON Document..." Command="{Binding ExportJsonCommand}" />
+                                <MenuItem Header="Export to Text Outline Report..." Command="{Binding ExportTxtCommand}" />
+                            </ContextMenu>
+                        </Button.ContextMenu>
+                        <Button.Triggers>
+                            <EventTrigger RoutedEvent="Button.Click">
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <!-- Opens context menu on click -->
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </EventTrigger>
+                        </Button.Triggers>
+                    </Button>
+                </StackPanel>
+
+                <!-- Instant Search Filter -->
+                <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border Background="#16161F" BorderBrush="#333344" BorderThickness="1" CornerRadius="4" Padding="6,2">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="🔍" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" Margin="4,0,6,0" />
+                            <TextBox Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                                     Width="170"
+                                     Height="26"
+                                     BorderThickness="0"
+                                     Background="Transparent"
+                                     Foreground="#FFFFFF"
+                                     VerticalContentAlignment="Center" />
+                            <Button Content="✕" Width="20" Height="20" Padding="0" Background="Transparent" BorderThickness="0"
+                                    Foreground="{StaticResource TextMutedBrush}"
+                                    Click="ClearSearch_Click"
+                                    ToolTip="Clear Search Filter" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ================= MAIN TABBED VIEWS ================= -->
+        <TabControl Grid.Row="2" Margin="0" x:Name="MainTabs">
+
+            <!-- TAB 1: TREE TABLE VIEW -->
+            <TabItem Header="🌳 Tree Details">
+                <Grid Background="{StaticResource BgDarkBrush}">
+                    <Grid.RowDefinitions>
+                        <!-- Column Header Bar -->
+                        <RowDefinition Height="Auto" />
+                        <!-- Tree View -->
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <!-- Column Headers -->
+                    <Border Grid.Row="0" Background="#14141B" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Padding="12,6">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="420" /> <!-- Name -->
+                                <ColumnDefinition Width="110" /> <!-- Size -->
+                                <ColumnDefinition Width="110" /> <!-- Allocated -->
+                                <ColumnDefinition Width="150" /> <!-- % of Parent with Bar -->
+                                <ColumnDefinition Width="80" />  <!-- Files -->
+                                <ColumnDefinition Width="80" />  <!-- Folders -->
+                                <ColumnDefinition Width="140" /> <!-- Last Modified -->
+                                <ColumnDefinition Width="70" />  <!-- Attributes -->
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0" Text="Name" Foreground="{StaticResource YellowElectricBrush}" FontWeight="SemiBold" FontSize="12" />
+                            <TextBlock Grid.Column="1" Text="Size" Foreground="{StaticResource YellowElectricBrush}" FontWeight="SemiBold" FontSize="12" TextAlignment="Right" Margin="0,0,8,0" />
+                            <TextBlock Grid.Column="2" Text="Allocated" Foreground="{StaticResource YellowElectricBrush}" FontWeight="SemiBold" FontSize="12" TextAlignment="Right" Margin="0,0,8,0" />
+                            <TextBlock Grid.Column="3" Text="% of Parent" Foreground="{StaticResource YellowElectricBrush}" FontWeight="SemiBold" FontSize="12" Margin="10,0,0,0" />
+                            <TextBlock Grid.Column="4" Text="Files" Foreground="{StaticResource YellowElectricBrush}" FontWeight="SemiBold" FontSize="12" TextAlignment="Right" Margin="0,0,8,0" />
+                            <TextBlock Grid.Column="5" Text="Folders" Foreground="{StaticResource YellowElectricBrush}" FontWeight="SemiBold" FontSize="12" TextAlignment="Right" Margin="0,0,8,0" />
+                            <TextBlock Grid.Column="6" Text="Last Modified" Foreground="{StaticResource YellowElectricBrush}" FontWeight="SemiBold" FontSize="12" Margin="8,0,0,0" />
+                            <TextBlock Grid.Column="7" Text="Attrs" Foreground="{StaticResource YellowElectricBrush}" FontWeight="SemiBold" FontSize="12" HorizontalAlignment="Center" />
+                        </Grid>
+                    </Border>
+
+                    <!-- Hierarchical Virtualized Tree -->
+                    <TreeView Grid.Row="1"
+                              ItemsSource="{Binding RootCollection}"
+                              Background="Transparent"
+                              BorderThickness="0"
+                              VirtualizingStackPanel.IsVirtualizing="True"
+                              VirtualizingStackPanel.VirtualizationMode="Recycling"
+                              Padding="4"
+                              x:Name="TreeList">
+
+                        <TreeView.ItemContainerStyle>
+                            <Style TargetType="TreeViewItem">
+                                <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+                                <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}" />
+                                <Setter Property="Visibility" Value="{Binding IsFilteredOut, Converter={StaticResource BoolToVisibilityCollapseConverter}}" />
+                                <Setter Property="Padding" Value="0,2" />
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="TreeViewItem">
+                                            <Grid>
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto" />
+                                                    <RowDefinition Height="*" />
+                                                </Grid.RowDefinitions>
+                                                <Border x:Name="Bd"
+                                                        Background="{TemplateBinding Background}"
+                                                        BorderBrush="{TemplateBinding BorderBrush}"
+                                                        BorderThickness="{TemplateBinding BorderThickness}"
+                                                        Padding="{TemplateBinding Padding}"
+                                                        CornerRadius="3">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="*" />
+                                                        </Grid.ColumnDefinitions>
+
+                                                        <!-- Expander Arrow -->
+                                                        <ToggleButton x:Name="Expander"
+                                                                      ClickMode="Press"
+                                                                      IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}}"
+                                                                      Style="{StaticResource TreeViewExpandCollapseToggleStyle}" />
+
+                                                        <ContentPresenter Grid.Column="1"
+                                                                          x:Name="PART_Header"
+                                                                          ContentSource="Header"
+                                                                          HorizontalAlignment="Stretch" />
+                                                    </Grid>
+                                                </Border>
+                                                <ItemsPresenter Grid.Row="1" x:Name="ItemsHost" Margin="18,0,0,0" />
+                                            </Grid>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsExpanded" Value="False">
+                                                    <Setter TargetName="ItemsHost" Property="Visibility" Value="Collapsed" />
+                                                </Trigger>
+                                                <Trigger Property="HasItems" Value="False">
+                                                    <Setter TargetName="Expander" Property="Visibility" Value="Hidden" />
+                                                </Trigger>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter TargetName="Bd" Property="Background" Value="#1C1C26" />
+                                                </Trigger>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter TargetName="Bd" Property="Background" Value="#2D2700" />
+                                                    <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource YellowAmberBrush}" />
+                                                    <Setter TargetName="Bd" Property="BorderThickness" Value="1" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </TreeView.ItemContainerStyle>
+
+                        <!-- Node Row Template -->
+                        <TreeView.ItemTemplate>
+                            <HierarchicalDataTemplate DataType="{x:Type models:FsItem}" ItemsSource="{Binding Children}">
+                                <Grid Margin="0,1" HorizontalAlignment="Stretch">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="390" /> <!-- Name -->
+                                        <ColumnDefinition Width="110" /> <!-- Size -->
+                                        <ColumnDefinition Width="110" /> <!-- Allocated -->
+                                        <ColumnDefinition Width="150" /> <!-- % of Parent with Bar -->
+                                        <ColumnDefinition Width="80" />  <!-- Files -->
+                                        <ColumnDefinition Width="80" />  <!-- Folders -->
+                                        <ColumnDefinition Width="140" /> <!-- Last Modified -->
+                                        <ColumnDefinition Width="70" />  <!-- Attributes -->
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Node Context Menu -->
+                                    <Grid.ContextMenu>
+                                        <ContextMenu>
+                                            <MenuItem Header="Open in File Explorer" Click="MenuOpenExplorer_Click" />
+                                            <MenuItem Header="Open Command Prompt Here" Click="MenuOpenTerminal_Click" />
+                                            <MenuItem Header="Copy Full Path" Click="MenuCopyPath_Click" />
+                                            <Separator Background="#333344" />
+                                            <MenuItem Header="Move to Recycle Bin" Click="MenuRecycle_Click" />
+                                            <MenuItem Header="Delete Permanently" Click="MenuDeletePermanent_Click" Foreground="#FF5555" />
+                                            <Separator Background="#333344" />
+                                            <MenuItem Header="Rescan this Folder" Click="MenuRescan_Click" />
+                                        </ContextMenu>
+                                    </Grid.ContextMenu>
+
+                                    <!-- Column 0: Icon + Name -->
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding IsDirectory, Converter={StaticResource DirToFileIconConverter}}"
+                                                   Foreground="{StaticResource YellowElectricBrush}"
+                                                   Margin="0,0,6,0"
+                                                   FontSize="13" />
+                                        <TextBlock Text="{Binding Name}"
+                                                   Foreground="#FFFFFF"
+                                                   FontWeight="SemiBold"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   FontSize="12"
+                                                   ToolTip="{Binding FullPath}" />
+                                    </StackPanel>
+
+                                    <!-- Column 1: Size -->
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding Size, Converter={StaticResource SizeFormatter}}"
+                                               Foreground="{StaticResource YellowElectricBrush}"
+                                               FontWeight="Bold"
+                                               FontSize="12"
+                                               TextAlignment="Right"
+                                               Margin="0,0,8,0"
+                                               VerticalAlignment="Center" />
+
+                                    <!-- Column 2: Allocated Size -->
+                                    <TextBlock Grid.Column="2"
+                                               Text="{Binding AllocatedSize, Converter={StaticResource SizeFormatter}}"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               FontSize="12"
+                                               TextAlignment="Right"
+                                               Margin="0,0,8,0"
+                                               VerticalAlignment="Center" />
+
+                                    <!-- Column 3: % of Parent with Gradient Progress Bar -->
+                                    <Grid Grid.Column="3" Margin="10,2,10,2" VerticalAlignment="Center">
+                                        <Border Height="14" Background="#191922" CornerRadius="2" BorderBrush="#2B2B38" BorderThickness="1">
+                                            <Grid HorizontalAlignment="Left" Width="{Binding PercentOfParent, Converter={StaticResource PercentToWidth130Converter}}">
+                                                <Border Background="{StaticResource YellowBarGradient}" CornerRadius="1" />
+                                            </Grid>
+                                        </Border>
+                                        <TextBlock Text="{Binding PercentOfParentDisplay}"
+                                                   Foreground="#FFFFFF"
+                                                   FontWeight="Bold"
+                                                   FontSize="10"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center">
+                                            <TextBlock.Effect>
+                                                <DropShadowEffect BlurRadius="2" ShadowDepth="1" Color="#000000" />
+                                            </TextBlock.Effect>
+                                        </TextBlock>
+                                    </Grid>
+
+                                    <!-- Column 4: Files -->
+                                    <TextBlock Grid.Column="4"
+                                               Text="{Binding FileCount, StringFormat={}{0:N0}}"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               FontSize="11"
+                                               TextAlignment="Right"
+                                               Margin="0,0,8,0"
+                                               VerticalAlignment="Center" />
+
+                                    <!-- Column 5: Folders -->
+                                    <TextBlock Grid.Column="5"
+                                               Text="{Binding FolderCount, StringFormat={}{0:N0}}"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               FontSize="11"
+                                               TextAlignment="Right"
+                                               Margin="0,0,8,0"
+                                               VerticalAlignment="Center" />
+
+                                    <!-- Column 6: Last Modified -->
+                                    <TextBlock Grid.Column="6"
+                                               Text="{Binding LastModified, StringFormat={}{0:yyyy-MM-dd HH:mm}}"
+                                               Foreground="{StaticResource TextMutedBrush}"
+                                               FontSize="11"
+                                               Margin="8,0,0,0"
+                                               VerticalAlignment="Center" />
+
+                                    <!-- Column 7: Attributes -->
+                                    <TextBlock Grid.Column="7"
+                                               Text="{Binding AttributesDisplay}"
+                                               Foreground="{StaticResource TextMutedBrush}"
+                                               FontSize="10"
+                                               FontFamily="Consolas"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center" />
+                                </Grid>
+                            </HierarchicalDataTemplate>
+                        </TreeView.ItemTemplate>
+                    </TreeView>
+                </Grid>
+            </TabItem>
+
+            <!-- TAB 2: TREEMAP VISUALIZATION -->
+            <TabItem Header="🗺️ Treemap Mosaic">
+                <Grid Background="{StaticResource BgDarkBrush}">
+                    <Grid.RowDefinitions>
+                        <!-- Treemap Breadcrumbs & Navigation -->
+                        <RowDefinition Height="Auto" />
+                        <!-- Canvas View -->
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <!-- Treemap Toolbar -->
+                    <Border Grid.Row="0" Background="#13131A" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Padding="12,6">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button Content="🏠 Root" Click="TreemapRoot_Click" Margin="0,0,6,0" Padding="8,4" FontSize="11" />
+                                <Button Content="⬆ Up Level" Click="TreemapUp_Click" Margin="0,0,12,0" Padding="8,4" FontSize="11" />
+                                <TextBlock Text="Viewing: " Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" FontSize="12" />
+                                <TextBlock x:Name="TreemapCurrentPath" Text="{Binding RootItem.FullPath}" Foreground="{StaticResource YellowElectricBrush}" FontWeight="Bold" VerticalAlignment="Center" FontSize="12" />
+                            </StackPanel>
+
+                            <TextBlock Grid.Column="2" Text="💡 Tip: Double-click a tile to drill down, right-click to navigate" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" FontSize="11" FontStyle="Italic" />
+                        </Grid>
+                    </Border>
+
+                    <!-- Custom Interactive Treemap Canvas -->
+                    <controls:TreemapCanvas Grid.Row="1" x:Name="TreemapView" SourceItem="{Binding RootItem}" Margin="6" />
+                </Grid>
+            </TabItem>
+
+            <!-- TAB 3: FILE EXTENSIONS BREAKDOWN -->
+            <TabItem Header="📊 Extensions">
+                <Grid Background="{StaticResource BgDarkBrush}" Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="Distribution of disk usage grouped by file type and extension" Foreground="{StaticResource TextMutedBrush}" FontSize="12" Margin="4,4,4,8" />
+
+                    <DataGrid Grid.Row="1" ItemsSource="{Binding Extensions}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Extension" Binding="{Binding Extension}" Width="120">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="FontWeight" Value="Bold" />
+                                        <Setter Property="Foreground" Value="{StaticResource YellowElectricBrush}" />
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="200" />
+
+                            <DataGridTextColumn Header="File Count" Binding="{Binding FileCount, StringFormat={}{0:N0}}" Width="120">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="TextAlignment" Value="Right" />
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <DataGridTextColumn Header="Total Size" Binding="{Binding TotalSize, Converter={StaticResource SizeFormatter}}" Width="130">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="FontWeight" Value="Bold" />
+                                        <Setter Property="Foreground" Value="#FFFFFF" />
+                                        <Setter Property="TextAlignment" Value="Right" />
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <DataGridTextColumn Header="Allocated Size" Binding="{Binding AllocatedSize, Converter={StaticResource SizeFormatter}}" Width="130">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+                                        <Setter Property="TextAlignment" Value="Right" />
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <!-- Proportion Bar Column -->
+                            <DataGridTemplateColumn Header="% of Total Space" Width="200">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="4,2">
+                                            <Border Height="14" Background="#181822" CornerRadius="2" BorderBrush="#2C2C3A" BorderThickness="1">
+                                                <Grid HorizontalAlignment="Left" Width="{Binding PercentOfTotal, Converter={StaticResource PercentToWidth180Converter}}">
+                                                    <Border Background="{StaticResource YellowBarGradient}" CornerRadius="1" />
+                                                </Grid>
+                                            </Border>
+                                            <TextBlock Text="{Binding PercentDisplay}" Foreground="#FFFFFF" FontWeight="Bold" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+
+            <!-- TAB 4: TOP 100 LARGEST FILES -->
+            <TabItem Header="🏆 Top 100 Files">
+                <Grid Background="{StaticResource BgDarkBrush}" Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="Largest individual files found during the scan — great for rapid disk cleanups" Foreground="{StaticResource TextMutedBrush}" FontSize="12" Margin="4,4,4,8" />
+
+                    <DataGrid Grid.Row="1" ItemsSource="{Binding TopFiles}" x:Name="TopFilesGrid">
+                        <DataGrid.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Open in File Explorer" Click="TopFileOpenExplorer_Click" />
+                                <MenuItem Header="Copy Full Path" Click="TopFileCopyPath_Click" />
+                                <Separator Background="#333344" />
+                                <MenuItem Header="Move to Recycle Bin" Click="TopFileRecycle_Click" />
+                            </ContextMenu>
+                        </DataGrid.ContextMenu>
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Rank" Binding="{Binding Rank, StringFormat='#{0}'}" Width="65">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="{StaticResource YellowAmberBrush}" />
+                                        <Setter Property="FontWeight" Value="Bold" />
+                                        <Setter Property="TextAlignment" Value="Center" />
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <DataGridTextColumn Header="File Name" Binding="{Binding Name}" Width="250">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="FontWeight" Value="SemiBold" />
+                                        <Setter Property="Foreground" Value="#FFFFFF" />
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <DataGridTextColumn Header="Size" Binding="{Binding Size, Converter={StaticResource SizeFormatter}}" Width="120">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="FontWeight" Value="Bold" />
+                                        <Setter Property="Foreground" Value="{StaticResource YellowElectricBrush}" />
+                                        <Setter Property="TextAlignment" Value="Right" />
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <DataGridTextColumn Header="Allocated" Binding="{Binding AllocatedSize, Converter={StaticResource SizeFormatter}}" Width="120">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}" />
+                                        <Setter Property="TextAlignment" Value="Right" />
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <DataGridTextColumn Header="% of Total" Binding="{Binding PercentDisplay}" Width="90">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Foreground" Value="{StaticResource YellowAmberBrush}" />
+                                        <Setter Property="FontWeight" Value="SemiBold" />
+                                        <Setter Property="TextAlignment" Value="Right" />
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <DataGridTextColumn Header="Last Modified" Binding="{Binding LastModified, StringFormat={}{0:yyyy-MM-dd HH:mm}}" Width="140" />
+
+                            <DataGridTextColumn Header="Directory Path" Binding="{Binding DirectoryPath}" Width="*" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+
+            <!-- TAB 5: FILE AGE DISTRIBUTION -->
+            <TabItem Header="⏳ Age Distribution">
+                <Grid Background="{StaticResource BgDarkBrush}" Margin="8">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="Distribution of disk space based on when files were last modified" Foreground="{StaticResource TextMutedBrush}" FontSize="12" Margin="4,4,4,8" />
+
+                    <DataGrid Grid.Row="1" ItemsSource="{Binding AgeDistribution}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Age Range" Binding="{Binding RangeName}" Width="160">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="FontWeight" Value="Bold" />
+                                        <Setter Property="Foreground" Value="{StaticResource YellowElectricBrush}" />
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <DataGridTextColumn Header="File Count" Binding="{Binding FileCount, StringFormat={}{0:N0}}" Width="140">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="TextAlignment" Value="Right" />
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <DataGridTextColumn Header="Total Size" Binding="{Binding TotalSize, Converter={StaticResource SizeFormatter}}" Width="150">
+                                <DataGridTextColumn.ElementStyle>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="FontWeight" Value="Bold" />
+                                        <Setter Property="Foreground" Value="#FFFFFF" />
+                                        <Setter Property="TextAlignment" Value="Right" />
+                                    </Style>
+                                </DataGridTextColumn.ElementStyle>
+                            </DataGridTextColumn>
+
+                            <DataGridTemplateColumn Header="% of Total Size" Width="240">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="4,2">
+                                            <Border Height="14" Background="#181822" CornerRadius="2" BorderBrush="#2C2C3A" BorderThickness="1">
+                                                <Grid HorizontalAlignment="Left" Width="{Binding PercentOfTotal, Converter={StaticResource PercentToWidth220Converter}}">
+                                                    <Border Background="{StaticResource YellowBarGradient}" CornerRadius="1" />
+                                                </Grid>
+                                            </Border>
+                                            <TextBlock Text="{Binding PercentDisplay}" Foreground="#FFFFFF" FontWeight="Bold" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </TabItem>
+
+        </TabControl>
+
+        <!-- ================= STATUS & TELEMETRY BAR ================= -->
+        <Border Grid.Row="3" Background="#0A0A0D" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0" Padding="14,6">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <!-- Status / Path Text -->
+                    <ColumnDefinition Width="*" />
+                    <!-- Scanning Indicator -->
+                    <ColumnDefinition Width="Auto" />
+                    <!-- Telemetry Stats -->
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Status & Live Path -->
+                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding StatusText}" Foreground="{StaticResource YellowElectricBrush}" FontWeight="SemiBold" FontSize="11" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding CurrentScanPath, StringFormat=' ({0})'}" Foreground="{StaticResource TextMutedBrush}" FontSize="11" TextTrimming="CharacterEllipsis" Margin="4,0,0,0" Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisibilityConverter}}" />
+                </StackPanel>
+
+                <!-- Live Scanning Progress Bar -->
+                <ProgressBar Grid.Column="1" Width="140" Height="8" IsIndeterminate="True"
+                             Margin="12,0"
+                             Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisibilityConverter}}"
+                             Foreground="{StaticResource YellowElectricBrush}"
+                             Background="#161620" />
+
+                <!-- Telemetry Counters -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Speed: " Foreground="{StaticResource TextMutedBrush}" FontSize="11" />
+                    <TextBlock Text="{Binding ScanSpeed}" Foreground="{StaticResource YellowElectricBrush}" FontWeight="SemiBold" FontSize="11" Margin="0,0,14,0" />
+
+                    <TextBlock Text="Elapsed: " Foreground="{StaticResource TextMutedBrush}" FontSize="11" />
+                    <TextBlock Text="{Binding ElapsedScanTime}" Foreground="#FFFFFF" FontWeight="SemiBold" FontSize="11" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+    </Grid>
+</Window>
