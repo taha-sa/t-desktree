@@ -68,6 +68,7 @@ public class MainWindowViewModel : INotifyPropertyChanged
     public ObservableCollection<ExtensionStat> Extensions { get; } = new();
     public ObservableCollection<TopFileItem> TopFiles { get; } = new();
     public ObservableCollection<AgeDistributionItem> AgeDistribution { get; } = new();
+    public ObservableCollection<DiscoveredFileItem> DiscoveredFiles { get; } = new();
 
     /// <summary>Kokten TreemapRoot'a kadar olan klasorler (breadcrumb).</summary>
     public ObservableCollection<FsItem> TreemapBreadcrumb { get; } = new();
@@ -579,6 +580,19 @@ public class MainWindowViewModel : INotifyPropertyChanged
             ScannedBytes = p.BytesScanned;
             ElapsedScanTime = p.Elapsed.ToString(@"hh\:mm\:ss\.f");
             ScanSpeed = $"{p.FilesPerSecond:N0} dosya/sn";
+
+            if (p.RecentFiles != null && p.RecentFiles.Count > 0)
+            {
+                foreach (var file in p.RecentFiles)
+                {
+                    DiscoveredFiles.Insert(0, file);
+                }
+
+                while (DiscoveredFiles.Count > 500)
+                {
+                    DiscoveredFiles.RemoveAt(DiscoveredFiles.Count - 1);
+                }
+            }
         });
     }
 
@@ -690,6 +704,7 @@ public class MainWindowViewModel : INotifyPropertyChanged
         Extensions.Clear();
         TopFiles.Clear();
         AgeDistribution.Clear();
+        DiscoveredFiles.Clear();
     }
 
     private static void ReplaceCollection<T>(ObservableCollection<T> target, IEnumerable<T> items)
@@ -704,11 +719,12 @@ public class MainWindowViewModel : INotifyPropertyChanged
     {
         FsItem f => f,
         TopFileItem t => TreeMaintenance.FindByPath(RootItem, t.FullPath),
+        DiscoveredFileItem d => TreeMaintenance.FindByPath(RootItem, d.FullPath),
         null => SelectedItem,
         _ => null
     };
 
-    private bool HasTarget(object? p) => p is FsItem or TopFileItem || (p == null && SelectedItem != null);
+    private bool HasTarget(object? p) => p is FsItem or TopFileItem or DiscoveredFileItem || (p == null && SelectedItem != null);
 
     private bool CanActOnItem(object? p) => !IsScanning && !_isDeleting && HasTarget(p);
 
@@ -915,6 +931,7 @@ public class MainWindowViewModel : INotifyPropertyChanged
         {
             FsItem f => f.FullPath,
             TopFileItem t => t.FullPath,
+            DiscoveredFileItem d => d.FullPath,
             null => SelectedItem?.FullPath,
             _ => null
         };

@@ -18,6 +18,7 @@ public class ScanEngine
     private long _foldersScanned;
     private long _bytesScanned;
     private DateTime _lastProgressReport = DateTime.MinValue;
+    private readonly ConcurrentQueue<DiscoveredFileItem> _recentFilesBuffer = new();
 
     public event Action<ScanProgress>? ProgressChanged;
 
@@ -28,6 +29,7 @@ public class ScanEngine
         _foldersScanned = 0;
         _bytesScanned = 0;
         _lastProgressReport = DateTime.MinValue;
+        while (_recentFilesBuffer.TryDequeue(out _)) { }
 
         var extStats = new ConcurrentDictionary<string, (long count, long size, long alloc)>(StringComparer.OrdinalIgnoreCase);
         var topFiles = new ConcurrentBag<TopFileItem>();
@@ -55,6 +57,25 @@ public class ScanEngine
         }, cancellationToken);
 
         _stopwatch.Stop();
+
+        // Flush any remaining buffered files to progress listeners
+        if (!_recentFilesBuffer.IsEmpty)
+        {
+            var finalBatch = new List<DiscoveredFileItem>();
+            while (finalBatch.Count < 50 && _recentFilesBuffer.TryDequeue(out var item))
+            {
+                finalBatch.Add(item);
+            }
+            ProgressChanged?.Invoke(new ScanProgress
+            {
+                CurrentPath = targetPath,
+                FilesScanned = _filesScanned,
+                FoldersScanned = _foldersScanned,
+                BytesScanned = _bytesScanned,
+                Elapsed = _stopwatch.Elapsed,
+                RecentFiles = finalBatch
+            });
+        }
 
         if (root != null)
         {
@@ -245,6 +266,21 @@ public class ScanEngine
                     Interlocked.Increment(ref ageCounts[bucketIndex]);
 
                     folder.Children.Add(childFile);
+
+                    _recentFilesBuffer.Enqueue(new DiscoveredFileItem
+                    {
+                        Name = name,
+                        DirectoryPath = folder.FullPath,
+                        FullPath = childPath,
+                        Size = fileSize,
+                        Extension = ext,
+                        LastModified = modified
+                    });
+
+                    if ((_filesScanned & 63) == 0)
+                    {
+                        ReportProgressThrottled(childPath);
+                    }
                 }
             } while (NativeFileSystem.FindNextFile(hFind, out findData));
         }
@@ -291,13 +327,24 @@ public class ScanEngine
         if ((now - _lastProgressReport).TotalMilliseconds >= 80)
         {
             _lastProgressReport = now;
+
+            var batch = new List<DiscoveredFileItem>();
+            while (batch.Count < 30 && _recentFilesBuffer.TryDequeue(out var item))
+            {
+                batch.Add(item);
+            }
+
+            // Buffer protection against runaway memory if file scan exceeds progress consumption
+            while (_recentFilesBuffer.Count > 500 && _recentFilesBuffer.TryDequeue(out _)) { }
+
             ProgressChanged?.Invoke(new ScanProgress
             {
                 CurrentPath = currentPath,
                 FilesScanned = _filesScanned,
                 FoldersScanned = _foldersScanned,
                 BytesScanned = _bytesScanned,
-                Elapsed = _stopwatch.Elapsed
+                Elapsed = _stopwatch.Elapsed,
+                RecentFiles = batch
             });
         }
     }
