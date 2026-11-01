@@ -1,9 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
+using System.Windows.Data;
 using AmberTree.Converters;
 using AmberTree.Services;
 
@@ -11,6 +13,7 @@ namespace AmberTree.Models;
 
 public class FsItem : INotifyPropertyChanged
 {
+    private readonly object _childrenLock = new();
     private bool _isExpanded;
     private bool _isSelected;
     private bool _isFilteredOut;
@@ -27,9 +30,17 @@ public class FsItem : INotifyPropertyChanged
     public DateTime LastModified { get; set; }
     public FileAttributes Attributes { get; set; }
 
-    [System.Text.Json.Serialization.JsonIgnore]
+    [JsonIgnore]
     public FsItem? Parent { get; set; }
     public ObservableCollection<FsItem> Children { get; } = new();
+
+    [JsonIgnore]
+    public object SyncLock => _childrenLock;
+
+    public FsItem()
+    {
+        BindingOperations.EnableCollectionSynchronization(Children, _childrenLock);
+    }
 
     public bool IsExpanded
     {
@@ -40,6 +51,10 @@ public class FsItem : INotifyPropertyChanged
             {
                 _isExpanded = value;
                 OnPropertyChanged();
+                if (value && IsDirectory)
+                {
+                    EnsureDirectChildrenLoaded();
+                }
             }
         }
     }
@@ -151,6 +166,88 @@ public class FsItem : INotifyPropertyChanged
             if ((Attributes & FileAttributes.Encrypted) != 0) res += "E";
             if ((Attributes & FileAttributes.ReparsePoint) != 0) res += "L";
             return string.IsNullOrEmpty(res) ? "-" : res;
+        }
+    }
+
+    public void EnsureDirectChildrenLoaded()
+    {
+        if (!IsDirectory || string.IsNullOrEmpty(FullPath)) return;
+        lock (_childrenLock)
+        {
+            if (Children.Count > 0) return;
+            try
+            {
+                string searchPattern = Path.Combine(FullPath, "*");
+                IntPtr hFind = NativeFileSystem.FindFirstFileEx(
+                    searchPattern,
+                    1, // FindExInfoBasic
+                    out var findData,
+                    0,
+                    IntPtr.Zero,
+                    2); // FIND_FIRST_EX_LARGE_FETCH
+
+                if (hFind == IntPtr.Zero || hFind.ToInt64() == -1) return;
+
+                var subFolders = new List<FsItem>();
+                var directFiles = new List<FsItem>();
+                uint clusterSize = NativeFileSystem.GetClusterSize(FullPath);
+
+                try
+                {
+                    do
+                    {
+                        string name = findData.cFileName;
+                        if (name == "." || name == "..") continue;
+
+                        var attrs = (FileAttributes)findData.dwFileAttributes;
+                        bool isDir = (attrs & FileAttributes.Directory) != 0;
+                        string childPath = Path.Combine(FullPath, name);
+                        DateTime modified = NativeFileSystem.FileTimeToDateTime(findData.ftLastWriteTime);
+
+                        if (isDir)
+                        {
+                            subFolders.Add(new FsItem
+                            {
+                                Name = name,
+                                FullPath = childPath,
+                                IsDirectory = true,
+                                Attributes = attrs,
+                                LastModified = modified,
+                                Parent = this
+                            });
+                        }
+                        else
+                        {
+                            long fileSize = ((long)findData.nFileSizeHigh << 32) | (uint)findData.nFileSizeLow;
+                            long allocated = NativeFileSystem.AlignToCluster(fileSize, clusterSize);
+                            directFiles.Add(new FsItem
+                            {
+                                Name = name,
+                                FullPath = childPath,
+                                IsDirectory = false,
+                                Size = fileSize,
+                                AllocatedSize = allocated,
+                                Attributes = attrs,
+                                LastModified = modified,
+                                Parent = this,
+                                FileCount = 1,
+                                FolderCount = 0
+                            });
+                        }
+                    } while (NativeFileSystem.FindNextFile(hFind, out findData));
+                }
+                finally
+                {
+                    NativeFileSystem.FindClose(hFind);
+                }
+
+                foreach (var sub in subFolders) Children.Add(sub);
+                foreach (var f in directFiles) Children.Add(f);
+            }
+            catch
+            {
+                // Access denied or unreadable directory
+            }
         }
     }
 

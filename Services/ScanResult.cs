@@ -1,19 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using AmberTree.Models;
 
 namespace AmberTree.Services;
-
-public record DirectChildInfo(
-    string Name,
-    string FullPath,
-    bool IsDirectory,
-    FileAttributes Attributes,
-    DateTime LastModified,
-    long Size,
-    long AllocatedSize
-);
 
 public class ScanProgress
 {
@@ -23,7 +12,6 @@ public class ScanProgress
     public long BytesScanned { get; set; }
     public TimeSpan Elapsed { get; set; }
     public double FilesPerSecond => Elapsed.TotalSeconds > 0 ? FilesScanned / Elapsed.TotalSeconds : 0;
-    public Dictionary<string, (long bytes, long alloc, long files, long folders)>? DirectChildStats { get; set; }
 }
 
 public class ScanResult

@@ -17,19 +17,16 @@ public class ScanEngine
     private long _foldersScanned;
     private long _bytesScanned;
     private DateTime _lastProgressReport = DateTime.MinValue;
-    private readonly ConcurrentDictionary<string, (long bytes, long alloc, long files, long folders)> _directChildStats = new(StringComparer.OrdinalIgnoreCase);
 
     public event Action<ScanProgress>? ProgressChanged;
-    public event Action<IReadOnlyList<DirectChildInfo>>? ImmediateChildrenDiscovered;
 
-    public async Task<ScanResult> ScanAsync(string targetPath, CancellationToken cancellationToken)
+    public async Task<ScanResult> ScanAsync(string targetPath, CancellationToken cancellationToken, FsItem? existingRoot = null)
     {
         _stopwatch.Restart();
         _filesScanned = 0;
         _foldersScanned = 0;
         _bytesScanned = 0;
         _lastProgressReport = DateTime.MinValue;
-        _directChildStats.Clear();
 
         var extStats = new ConcurrentDictionary<string, (long count, long size, long alloc)>(StringComparer.OrdinalIgnoreCase);
         var topFiles = new ConcurrentBag<TopFileItem>();
@@ -39,32 +36,30 @@ public class ScanEngine
         uint clusterSize = NativeFileSystem.GetClusterSize(targetPath);
         var now = DateTime.Now;
 
-        FsItem? root = null;
+        var dirInfo = new DirectoryInfo(targetPath);
+        FsItem root = existingRoot ?? new FsItem
+        {
+            Name = string.IsNullOrEmpty(dirInfo.Name) ? targetPath : dirInfo.Name,
+            FullPath = targetPath,
+            IsDirectory = true,
+            LastModified = dirInfo.Exists ? dirInfo.LastWriteTime : DateTime.Now,
+            Attributes = dirInfo.Exists ? dirInfo.Attributes : FileAttributes.Directory,
+            PercentOfParent = 100.0,
+            PercentOfTotal = 100.0,
+            IsExpanded = true
+        };
 
         await Task.Run(() =>
         {
-            var dirInfo = new DirectoryInfo(targetPath);
-            root = new FsItem
-            {
-                Name = string.IsNullOrEmpty(dirInfo.Name) ? targetPath : dirInfo.Name,
-                FullPath = targetPath,
-                IsDirectory = true,
-                LastModified = dirInfo.Exists ? dirInfo.LastWriteTime : DateTime.Now,
-                Attributes = dirInfo.Exists ? dirInfo.Attributes : FileAttributes.Directory
-            };
-
             ScanNode(root, clusterSize, extStats, topFiles, ageBuckets, ageCounts, now, cancellationToken);
         }, cancellationToken);
 
         _stopwatch.Stop();
 
-        if (root != null)
-        {
-            CalculatePercentagesAndSort(root, root.Size);
-        }
+        CalculatePercentagesAndSort(root, root.Size);
 
         // Build Extension statistics
-        long totalSize = root?.Size ?? 0;
+        long totalSize = root.Size;
         var extList = extStats.Select(kv => new ExtensionStat
         {
             Extension = kv.Key,
@@ -108,8 +103,8 @@ public class ScanEngine
             Elapsed = _stopwatch.Elapsed,
             TotalFiles = _filesScanned,
             TotalFolders = _foldersScanned,
-            TotalSize = root?.Size ?? 0,
-            TotalAllocated = root?.AllocatedSize ?? 0,
+            TotalSize = root.Size,
+            TotalAllocated = root.AllocatedSize,
             WasCancelled = cancellationToken.IsCancellationRequested
         };
     }
@@ -122,169 +117,68 @@ public class ScanEngine
         long[] ageBuckets,
         long[] ageCounts,
         DateTime now,
-        CancellationToken ct,
-        string? directChildPath = null)
+        CancellationToken ct)
     {
         if (ct.IsCancellationRequested) return;
 
         Interlocked.Increment(ref _foldersScanned);
-        if (directChildPath != null)
-        {
-            _directChildStats.AddOrUpdate(
-                directChildPath,
-                (0, 0, 0, 1),
-                (_, old) => (old.bytes, old.alloc, old.files, old.folders + 1));
-        }
-
         ReportProgressThrottled(folder.FullPath);
 
-        string searchPattern = Path.Combine(folder.FullPath, "*");
-        IntPtr hFind = NativeFileSystem.FindFirstFileEx(
-            searchPattern,
-            1, // FindExInfoBasic
-            out var findData,
-            0, // FindExSearchNameMatch
-            IntPtr.Zero,
-            2); // FIND_FIRST_EX_LARGE_FETCH
+        // Ensure direct children of this folder are enumerated
+        folder.EnsureDirectChildrenLoaded();
 
-        if (hFind == IntPtr.Zero || hFind.ToInt64() == -1)
+        List<FsItem> subFolders;
+        lock (folder.SyncLock)
         {
-            // Access denied or empty directory
-            return;
-        }
+            subFolders = folder.Children.Where(c => c.IsDirectory).ToList();
 
-        var subFolders = new List<FsItem>();
-        var directFiles = new List<FsItem>();
-
-        try
-        {
-            do
+            foreach (var childFile in folder.Children.Where(c => !c.IsDirectory))
             {
-                if (ct.IsCancellationRequested) break;
+                folder.Size += childFile.Size;
+                folder.AllocatedSize += childFile.AllocatedSize;
+                folder.FileCount += 1;
 
-                string name = findData.cFileName;
-                if (name == "." || name == "..") continue;
+                Interlocked.Increment(ref _filesScanned);
+                Interlocked.Add(ref _bytesScanned, childFile.Size);
 
-                var attrs = (FileAttributes)findData.dwFileAttributes;
-                bool isDir = (attrs & FileAttributes.Directory) != 0;
-                string childPath = Path.Combine(folder.FullPath, name);
-                DateTime modified = NativeFileSystem.FileTimeToDateTime(findData.ftLastWriteTime);
+                // Track Extension
+                string ext = Path.GetExtension(childFile.Name).ToLowerInvariant();
+                if (string.IsNullOrEmpty(ext)) ext = TreeMaintenance.NoExtensionLabel;
+                extStats.AddOrUpdate(ext, (1, childFile.Size, childFile.AllocatedSize), (k, old) => (old.count + 1, old.size + childFile.Size, old.alloc + childFile.AllocatedSize));
 
-                if (isDir)
+                // Track Top Files (keep candidate items if reasonably large)
+                if (childFile.Size > 1024 * 1024) // > 1 MB
                 {
-                    var childFolder = new FsItem
+                    topFiles.Add(new TopFileItem
                     {
-                        Name = name,
-                        FullPath = childPath,
-                        IsDirectory = true,
-                        Attributes = attrs,
-                        LastModified = modified,
-                        Parent = folder
-                    };
-
-                    subFolders.Add(childFolder);
+                        Name = childFile.Name,
+                        DirectoryPath = folder.FullPath,
+                        FullPath = childFile.FullPath,
+                        Extension = ext,
+                        Size = childFile.Size,
+                        AllocatedSize = childFile.AllocatedSize,
+                        LastModified = childFile.LastModified
+                    });
                 }
-                else
+
+                // Track Age
+                var ageDays = (now - childFile.LastModified).TotalDays;
+                int bucketIndex = ageDays switch
                 {
-                    long fileSize = ((long)findData.nFileSizeHigh << 32) | (uint)findData.nFileSizeLow;
-                    long allocated = NativeFileSystem.AlignToCluster(fileSize, clusterSize);
+                    < 30 => 0,
+                    < 90 => 1,
+                    < 180 => 2,
+                    < 365 => 3,
+                    _ => 4
+                };
+                Interlocked.Add(ref ageBuckets[bucketIndex], childFile.Size);
+                Interlocked.Increment(ref ageCounts[bucketIndex]);
 
-                    var childFile = new FsItem
-                    {
-                        Name = name,
-                        FullPath = childPath,
-                        IsDirectory = false,
-                        Size = fileSize,
-                        AllocatedSize = allocated,
-                        Attributes = attrs,
-                        LastModified = modified,
-                        Parent = folder,
-                        FileCount = 1,
-                        FolderCount = 0
-                    };
-
-                    folder.Size += fileSize;
-                    folder.AllocatedSize += allocated;
-                    folder.FileCount += 1;
-
-                    Interlocked.Increment(ref _filesScanned);
-                    Interlocked.Add(ref _bytesScanned, fileSize);
-
-                    if (directChildPath != null)
-                    {
-                        _directChildStats.AddOrUpdate(
-                            directChildPath,
-                            (fileSize, allocated, 1, 0),
-                            (_, old) => (old.bytes + fileSize, old.alloc + allocated, old.files + 1, old.folders));
-                    }
-
-                    // Track Extension
-                    string ext = Path.GetExtension(name).ToLowerInvariant();
-                    if (string.IsNullOrEmpty(ext)) ext = TreeMaintenance.NoExtensionLabel;
-                    extStats.AddOrUpdate(ext, (1, fileSize, allocated), (k, old) => (old.count + 1, old.size + fileSize, old.alloc + allocated));
-
-                    // Track Top Files (keep candidate items if reasonably large)
-                    if (fileSize > 1024 * 1024) // > 1 MB
-                    {
-                        topFiles.Add(new TopFileItem
-                        {
-                            Name = name,
-                            DirectoryPath = folder.FullPath,
-                            FullPath = childPath,
-                            Extension = ext,
-                            Size = fileSize,
-                            AllocatedSize = allocated,
-                            LastModified = modified
-                        });
-                    }
-
-                    // Track Age
-                    var ageDays = (now - modified).TotalDays;
-                    int bucketIndex = ageDays switch
-                    {
-                        < 30 => 0,
-                        < 90 => 1,
-                        < 180 => 2,
-                        < 365 => 3,
-                        _ => 4
-                    };
-                    Interlocked.Add(ref ageBuckets[bucketIndex], fileSize);
-                    Interlocked.Increment(ref ageCounts[bucketIndex]);
-
-                    directFiles.Add(childFile);
-
-                    if ((_filesScanned & 63) == 0)
-                    {
-                        ReportProgressThrottled(childPath);
-                    }
+                if ((_filesScanned & 63) == 0)
+                {
+                    ReportProgressThrottled(childFile.FullPath);
                 }
-            } while (NativeFileSystem.FindNextFile(hFind, out findData));
-        }
-        finally
-        {
-            NativeFileSystem.FindClose(hFind);
-        }
-
-        // Add direct items to this folder
-        foreach (var sub in subFolders) folder.Children.Add(sub);
-        foreach (var f in directFiles) folder.Children.Add(f);
-
-        // If this is the root folder, discover and broadcast immediate children
-        if (folder.Parent == null)
-        {
-            var discovered = new List<DirectChildInfo>(subFolders.Count + directFiles.Count);
-            foreach (var sub in subFolders)
-            {
-                _directChildStats[sub.FullPath] = (0, 0, 0, 0);
-                discovered.Add(new DirectChildInfo(sub.Name, sub.FullPath, true, sub.Attributes, sub.LastModified, 0, 0));
             }
-            foreach (var f in directFiles)
-            {
-                _directChildStats[f.FullPath] = (f.Size, f.AllocatedSize, 1, 0);
-                discovered.Add(new DirectChildInfo(f.Name, f.FullPath, false, f.Attributes, f.LastModified, f.Size, f.AllocatedSize));
-            }
-            ImmediateChildrenDiscovered?.Invoke(discovered);
-            ReportProgress(folder.FullPath);
         }
 
         // Recurse into subfolders
@@ -293,10 +187,9 @@ public class ScanEngine
             if (ct.IsCancellationRequested) break;
 
             bool isReparse = (sub.Attributes & FileAttributes.ReparsePoint) != 0;
-            string? effectiveChildPath = directChildPath ?? (folder.Parent == null ? sub.FullPath : null);
             if (!isReparse)
             {
-                ScanNode(sub, clusterSize, extStats, topFiles, ageBuckets, ageCounts, now, ct, effectiveChildPath);
+                ScanNode(sub, clusterSize, extStats, topFiles, ageBuckets, ageCounts, now, ct);
             }
 
             folder.Size += sub.Size;
@@ -304,12 +197,10 @@ public class ScanEngine
             folder.FileCount += sub.FileCount;
             folder.FolderCount += 1 + sub.FolderCount;
 
-            // When a direct child finishes scanning completely, ensure exact finalized stats
-            if (folder.Parent == null)
-            {
-                _directChildStats[sub.FullPath] = (sub.Size, sub.AllocatedSize, sub.FileCount, sub.FolderCount);
-            }
+            sub.NotifySizesChanged();
         }
+
+        folder.NotifySizesChanged();
     }
 
     private void CalculatePercentagesAndSort(FsItem item, long rootTotalSize)
@@ -326,33 +217,24 @@ public class ScanEngine
 
         if (item.Children.Count > 0)
         {
-            // Sort children descending by Size
-            var sorted = item.Children.OrderByDescending(c => c.Size).ToList();
-            item.Children.Clear();
-            foreach (var child in sorted)
+            lock (item.SyncLock)
+            {
+                var sorted = item.Children.OrderByDescending(c => c.Size).ToList();
+                for (int i = 0; i < sorted.Count; i++)
+                {
+                    int oldIndex = item.Children.IndexOf(sorted[i]);
+                    if (oldIndex != i && oldIndex >= 0)
+                    {
+                        item.Children.Move(oldIndex, i);
+                    }
+                }
+            }
+
+            foreach (var child in item.Children)
             {
                 CalculatePercentagesAndSort(child, rootTotalSize);
-                item.Children.Add(child);
             }
         }
-    }
-
-    private void ReportProgress(string currentPath)
-    {
-        _lastProgressReport = DateTime.UtcNow;
-        var statsSnapshot = _directChildStats.IsEmpty
-            ? null
-            : new Dictionary<string, (long bytes, long alloc, long files, long folders)>(_directChildStats, StringComparer.OrdinalIgnoreCase);
-
-        ProgressChanged?.Invoke(new ScanProgress
-        {
-            CurrentPath = currentPath,
-            FilesScanned = _filesScanned,
-            FoldersScanned = _foldersScanned,
-            BytesScanned = _bytesScanned,
-            Elapsed = _stopwatch.Elapsed,
-            DirectChildStats = statsSnapshot
-        });
     }
 
     private void ReportProgressThrottled(string currentPath)
@@ -360,7 +242,15 @@ public class ScanEngine
         var now = DateTime.UtcNow;
         if ((now - _lastProgressReport).TotalMilliseconds >= 80)
         {
-            ReportProgress(currentPath);
+            _lastProgressReport = now;
+            ProgressChanged?.Invoke(new ScanProgress
+            {
+                CurrentPath = currentPath,
+                FilesScanned = _filesScanned,
+                FoldersScanned = _foldersScanned,
+                BytesScanned = _bytesScanned,
+                Elapsed = _stopwatch.Elapsed
+            });
         }
     }
 

@@ -60,7 +60,7 @@
                 <DockPanel Margin="{Binding Converter={StaticResource Conv.Depth}}" LastChildFill="True">
                     <ToggleButton DockPanel.Dock="Left" Width="20" Height="20" Focusable="False" ClickMode="Press" VerticalAlignment="Center"
                                   IsChecked="{Binding IsExpanded, Mode=TwoWay}"
-                                  Visibility="{Binding Children.Count, Converter={StaticResource Conv.Positive}}"
+                                  Visibility="{Binding IsDirectory, Converter={StaticResource Conv.BoolToVis}}"
                                   Style="{StaticResource TreeView.Expander}" />
                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource Fs.Icon}" Width="22" Margin="2,0,6,0" VerticalAlignment="Center" />
                     <TextBlock Text="{Binding Name}" Style="{StaticResource Text.Body}" VerticalAlignment="Center"
