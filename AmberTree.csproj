@@ -10,12 +10,13 @@
     <AssemblyName>AmberTree</AssemblyName>
     <Version>1.0.0</Version>
     <Product>AmberTree Disk Space Analyzer</Product>
-    <Description>High-performance disk space manager with Industrial Yellow &amp; Black aesthetic</Description>
+    <Description>High-performance disk space manager with Graphite / Aurora aesthetic</Description>
     <Company>AmberLabs</Company>
   </PropertyGroup>
 
   <ItemGroup>
     <Resource Include="app.ico" />
+    <Resource Include="Assets\logo.png" />
   </ItemGroup>
 
 </Project>

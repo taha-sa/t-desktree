@@ -13,11 +13,15 @@
             </Grid.ColumnDefinitions>
 
             <StackPanel Orientation="Horizontal" Margin="12,0,0,0" VerticalAlignment="Center">
-                <Border Width="22" Height="22" CornerRadius="6" Background="{DynamicResource Brush.Accent}">
-                    <TextBlock Text="{StaticResource Icon.Tree}" FontFamily="{DynamicResource Font.Icons}" FontSize="13"
-                               Foreground="{DynamicResource Brush.Accent.Fg}" HorizontalAlignment="Center"
-                               VerticalAlignment="Center" />
-                </Border>
+                <Viewbox Width="22" Height="22" Stretch="Uniform" UseLayoutRounding="False" SnapsToDevicePixels="False">
+                    <Canvas Width="256" Height="256">
+                        <Border Width="256" Height="256" CornerRadius="56" Background="{DynamicResource Brush.Border.Default}" />
+                        <Border Canvas.Left="3" Canvas.Top="3" Width="250" Height="250" CornerRadius="53" Background="{DynamicResource Brush.Bg.Surface}" />
+                        <Border Canvas.Left="30" Canvas.Top="30" Width="92" Height="196" CornerRadius="10" Background="{DynamicResource Brush.Accent}" />
+                        <Border Canvas.Left="138" Canvas.Top="30" Width="88" Height="90" CornerRadius="10" Background="{DynamicResource Brush.Cat.Video}" />
+                        <Border Canvas.Left="138" Canvas.Top="136" Width="88" Height="90" CornerRadius="10" Background="{DynamicResource Brush.Cat.Image}" />
+                    </Canvas>
+                </Viewbox>
                 <TextBlock Text="AmberTree" Style="{StaticResource Text.BodyStrong}" Margin="10,0,0,0"
                            VerticalAlignment="Center" />
                 <TextBlock Text="Disk alanı analizi" Style="{StaticResource Text.Muted}" Margin="10,1,0,0"
