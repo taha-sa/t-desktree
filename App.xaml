@@ -6,12 +6,11 @@
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <!-- Eski tema: Faz 2 de silinecek; eski MainWindow derlensin diye en basta -->
-                <ResourceDictionary Source="Themes/AmberTheme.xaml" />
                 <ResourceDictionary Source="Themes/Tokens.Dark.xaml" />
                 <ResourceDictionary Source="Themes/Typography.xaml" />
                 <ResourceDictionary Source="Themes/Icons.xaml" />
                 <ResourceDictionary Source="Themes/Controls.xaml" />
+                <ResourceDictionary Source="Views/Shared.xaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>

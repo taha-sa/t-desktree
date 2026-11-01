@@ -1,0 +1,40 @@
+<UserControl x:Class="AmberTree.Views.AgeView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Focusable="False">
+    <Grid>
+        <DataGrid ItemsSource="{Binding AgeDistribution}" AutomationProperties.Name="Yaş dağılımı">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Son değişiklik aralığı" Binding="{Binding RangeName}" Width="220"
+                                    CanUserSort="False" ElementStyle="{StaticResource Grid.Text}" />
+                <DataGridTextColumn Header="Dosya" Binding="{Binding FileCount, StringFormat={}{0:N0}}" SortMemberPath="FileCount" Width="100"
+                                    HeaderStyle="{StaticResource Grid.HeaderRight}" ElementStyle="{StaticResource Grid.Num}" />
+                <DataGridTextColumn Header="Boyut" Binding="{Binding TotalSizeDisplay}" SortMemberPath="TotalSize" Width="110"
+                                    HeaderStyle="{StaticResource Grid.HeaderRight}" ElementStyle="{StaticResource Grid.Num}" />
+                <DataGridTemplateColumn Header="Toplam içindeki pay" SortMemberPath="PercentOfTotal" Width="*" MinWidth="160">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="52" />
+                                </Grid.ColumnDefinitions>
+                                <Grid Height="8" VerticalAlignment="Center" Margin="0,0,8,0">
+                                    <Border Background="{DynamicResource Brush.Bg.Subtle}" CornerRadius="4" />
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="{Binding PercentOfTotal, Converter={StaticResource Conv.PctToStar}, ConverterParameter=fill}" />
+                                            <ColumnDefinition Width="{Binding PercentOfTotal, Converter={StaticResource Conv.PctToStar}, ConverterParameter=rest}" />
+                                        </Grid.ColumnDefinitions>
+                                        <Border Style="{StaticResource Bar.Fill}" />
+                                    </Grid>
+                                </Grid>
+                                <TextBlock Grid.Column="1" Text="{Binding PercentDisplay}" Style="{StaticResource Grid.Num}" />
+                            </Grid>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
+        </DataGrid>
+    </Grid>
+</UserControl>

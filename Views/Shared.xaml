@@ -1,0 +1,128 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:conv="clr-namespace:AmberTree.Converters"
+                    xmlns:svc="clr-namespace:AmberTree.Services">
+
+    <conv:BoolToVisibilityConverter x:Key="Conv.BoolToVis" />
+    <conv:BoolToVisibilityConverter x:Key="Conv.BoolToVisInv" Invert="True" />
+    <conv:BoolToVisibilityCollapseConverter x:Key="Conv.FilteredToVis" />
+    <conv:NotConverter x:Key="Conv.Not" />
+    <conv:PositiveToVisibilityConverter x:Key="Conv.Positive" />
+    <conv:PercentToGridLengthConverter x:Key="Conv.PctToStar" />
+    <conv:DepthToIndentConverter x:Key="Conv.Depth" />
+    <conv:EnumEqualsConverter x:Key="Conv.EnumEq" />
+
+    <!-- Kategori renkli ikon: klasor/dosya glifi + kategori rengi (tema ile birlikte guncellenir) -->
+    <Style x:Key="Fs.Icon" TargetType="TextBlock" BasedOn="{StaticResource Text.Icon}">
+        <Setter Property="Text" Value="{StaticResource Icon.File}" />
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Cat.Other}" />
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding Category}" Value="{x:Static svc:FileCategory.Video}"><Setter Property="Foreground" Value="{DynamicResource Brush.Cat.Video}" /></DataTrigger>
+            <DataTrigger Binding="{Binding Category}" Value="{x:Static svc:FileCategory.Image}"><Setter Property="Foreground" Value="{DynamicResource Brush.Cat.Image}" /></DataTrigger>
+            <DataTrigger Binding="{Binding Category}" Value="{x:Static svc:FileCategory.Audio}"><Setter Property="Foreground" Value="{DynamicResource Brush.Cat.Audio}" /></DataTrigger>
+            <DataTrigger Binding="{Binding Category}" Value="{x:Static svc:FileCategory.Archive}"><Setter Property="Foreground" Value="{DynamicResource Brush.Cat.Archive}" /></DataTrigger>
+            <DataTrigger Binding="{Binding Category}" Value="{x:Static svc:FileCategory.Code}"><Setter Property="Foreground" Value="{DynamicResource Brush.Cat.Code}" /></DataTrigger>
+            <DataTrigger Binding="{Binding Category}" Value="{x:Static svc:FileCategory.Executable}"><Setter Property="Foreground" Value="{DynamicResource Brush.Cat.Executable}" /></DataTrigger>
+            <DataTrigger Binding="{Binding Category}" Value="{x:Static svc:FileCategory.Document}"><Setter Property="Foreground" Value="{DynamicResource Brush.Cat.Document}" /></DataTrigger>
+            <DataTrigger Binding="{Binding IsDirectory}" Value="True">
+                <Setter Property="Text" Value="{StaticResource Icon.Folder}" />
+                <Setter Property="Foreground" Value="{DynamicResource Brush.Warning}" />
+            </DataTrigger>
+            <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding IsDirectory}" Value="True" />
+                    <Condition Binding="{Binding IsExpanded}" Value="True" />
+                </MultiDataTrigger.Conditions>
+                <Setter Property="Text" Value="{StaticResource Icon.FolderOpen}" />
+            </MultiDataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- Oransal bar dolgusu: klasor = Accent, dosya = kategori rengi -->
+    <Style x:Key="Fs.BarFill" TargetType="Border">
+        <Setter Property="CornerRadius" Value="3" />
+        <Setter Property="MinWidth" Value="2" />
+        <Setter Property="Background" Value="{DynamicResource Brush.Cat.Other}" />
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding Category}" Value="{x:Static svc:FileCategory.Video}"><Setter Property="Background" Value="{DynamicResource Brush.Cat.Video}" /></DataTrigger>
+            <DataTrigger Binding="{Binding Category}" Value="{x:Static svc:FileCategory.Image}"><Setter Property="Background" Value="{DynamicResource Brush.Cat.Image}" /></DataTrigger>
+            <DataTrigger Binding="{Binding Category}" Value="{x:Static svc:FileCategory.Audio}"><Setter Property="Background" Value="{DynamicResource Brush.Cat.Audio}" /></DataTrigger>
+            <DataTrigger Binding="{Binding Category}" Value="{x:Static svc:FileCategory.Archive}"><Setter Property="Background" Value="{DynamicResource Brush.Cat.Archive}" /></DataTrigger>
+            <DataTrigger Binding="{Binding Category}" Value="{x:Static svc:FileCategory.Code}"><Setter Property="Background" Value="{DynamicResource Brush.Cat.Code}" /></DataTrigger>
+            <DataTrigger Binding="{Binding Category}" Value="{x:Static svc:FileCategory.Executable}"><Setter Property="Background" Value="{DynamicResource Brush.Cat.Executable}" /></DataTrigger>
+            <DataTrigger Binding="{Binding Category}" Value="{x:Static svc:FileCategory.Document}"><Setter Property="Background" Value="{DynamicResource Brush.Cat.Document}" /></DataTrigger>
+            <DataTrigger Binding="{Binding IsDirectory}" Value="True"><Setter Property="Background" Value="{DynamicResource Brush.Accent}" /></DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- Duz (kategorisiz) oransal bar dolgusu: Uzantilar, En buyuk dosyalar, Yas -->
+    <Style x:Key="Bar.Fill" TargetType="Border">
+        <Setter Property="CornerRadius" Value="3" />
+        <Setter Property="MinWidth" Value="2" />
+        <Setter Property="Background" Value="{DynamicResource Brush.Accent}" />
+    </Style>
+
+    <!-- DataGrid yardimcilari: sagda hizali mono sayi ve baslik -->
+    <Style x:Key="Grid.Num" TargetType="TextBlock" BasedOn="{StaticResource Text.Mono}">
+        <Setter Property="TextAlignment" Value="Right" />
+        <Setter Property="HorizontalAlignment" Value="Right" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style x:Key="Grid.Text" TargetType="TextBlock" BasedOn="{StaticResource Text.Body}">
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+    <Style x:Key="Grid.Path" TargetType="TextBlock" BasedOn="{StaticResource Text.Mono}">
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Secondary}" />
+    </Style>
+    <Style x:Key="Grid.HeaderRight" TargetType="DataGridColumnHeader" BasedOn="{StaticResource {x:Type DataGridColumnHeader}}">
+        <Setter Property="HorizontalContentAlignment" Value="Right" />
+    </Style>
+
+    <!-- Sag tik menusu: agac ve treemap (parametre = tiklanan FsItem; Tag = ViewModel) -->
+    <ContextMenu x:Key="ItemContextMenu">
+        <MenuItem Header="Explorer'da aç" Icon="{StaticResource Icon.Explorer}"
+                  Command="{Binding PlacementTarget.Tag.OpenInExplorerCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                  CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+        <MenuItem Header="Terminalde aç" Icon="{StaticResource Icon.Terminal}"
+                  Command="{Binding PlacementTarget.Tag.OpenTerminalCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                  CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+        <MenuItem Header="Yolu kopyala" Icon="{StaticResource Icon.Copy}"
+                  Command="{Binding PlacementTarget.Tag.CopyPathCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                  CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+        <Separator Visibility="{Binding PlacementTarget.DataContext.IsDirectory, RelativeSource={RelativeSource AncestorType=ContextMenu}, Converter={StaticResource Conv.BoolToVis}, FallbackValue=Collapsed}" />
+        <MenuItem Header="Yeniden tara" Icon="{StaticResource Icon.Refresh}"
+                  Visibility="{Binding PlacementTarget.DataContext.IsDirectory, RelativeSource={RelativeSource AncestorType=ContextMenu}, Converter={StaticResource Conv.BoolToVis}, FallbackValue=Collapsed}"
+                  Command="{Binding PlacementTarget.Tag.RescanFolderCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                  CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+        <Separator />
+        <MenuItem Header="Geri dönüşüm kutusuna taşı" Icon="{StaticResource Icon.Recycle}" InputGestureText="Del"
+                  Command="{Binding PlacementTarget.Tag.RecycleCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                  CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+        <MenuItem Header="Kalıcı sil" Icon="{StaticResource Icon.Delete}" InputGestureText="Shift+Del" Style="{StaticResource MenuItem.Danger}"
+                  Command="{Binding PlacementTarget.Tag.DeletePermanentCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                  CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+    </ContextMenu>
+
+    <!-- En buyuk dosyalar: ayni menu, "Yeniden tara" yok -->
+    <ContextMenu x:Key="TopFileContextMenu">
+        <MenuItem Header="Explorer'da aç" Icon="{StaticResource Icon.Explorer}"
+                  Command="{Binding PlacementTarget.Tag.OpenInExplorerCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                  CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+        <MenuItem Header="Terminalde aç" Icon="{StaticResource Icon.Terminal}"
+                  Command="{Binding PlacementTarget.Tag.OpenTerminalCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                  CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+        <MenuItem Header="Yolu kopyala" Icon="{StaticResource Icon.Copy}"
+                  Command="{Binding PlacementTarget.Tag.CopyPathCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                  CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+        <Separator />
+        <MenuItem Header="Geri dönüşüm kutusuna taşı" Icon="{StaticResource Icon.Recycle}" InputGestureText="Del"
+                  Command="{Binding PlacementTarget.Tag.RecycleCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                  CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+        <MenuItem Header="Kalıcı sil" Icon="{StaticResource Icon.Delete}" InputGestureText="Shift+Del" Style="{StaticResource MenuItem.Danger}"
+                  Command="{Binding PlacementTarget.Tag.DeletePermanentCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                  CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+    </ContextMenu>
+</ResourceDictionary>

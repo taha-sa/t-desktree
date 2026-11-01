@@ -1,0 +1,178 @@
+<UserControl x:Class="AmberTree.Views.TreeDetailsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:views="clr-namespace:AmberTree.Views"
+             xmlns:models="clr-namespace:AmberTree.Models"
+             Focusable="False">
+    <UserControl.Resources>
+        <views:TreeColumns x:Key="Cols" />
+
+        <Style x:Key="Head.Text" TargetType="TextBlock" BasedOn="{StaticResource Text.Caption}">
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="8,0" />
+        </Style>
+        <Style x:Key="Head.Right" TargetType="TextBlock" BasedOn="{StaticResource Head.Text}">
+            <Setter Property="HorizontalAlignment" Value="Right" />
+        </Style>
+        <Style x:Key="Cell.Num" TargetType="TextBlock" BasedOn="{StaticResource Text.Mono}">
+            <Setter Property="HorizontalAlignment" Value="Right" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="8,0" />
+        </Style>
+        <Style x:Key="Cell.NumDir" TargetType="TextBlock" BasedOn="{StaticResource Cell.Num}">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsDirectory}" Value="False">
+                    <Setter Property="Visibility" Value="Hidden" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="Splitter.Handle" TargetType="Thumb">
+            <Setter Property="Width" Value="8" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+            <Setter Property="Margin" Value="-4,6,0,6" />
+            <Setter Property="Cursor" Value="SizeWE" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Thumb">
+                        <Border Background="Transparent">
+                            <Border Width="1" HorizontalAlignment="Center" Background="{DynamicResource Brush.Border.Strong}" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <HierarchicalDataTemplate DataType="{x:Type models:FsItem}" ItemsSource="{Binding Children}">
+            <Grid ToolTip="{Binding FullPath}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" MinWidth="120" />
+                    <ColumnDefinition Width="{Binding Size, Source={StaticResource Cols}}" />
+                    <ColumnDefinition Width="{Binding Allocated, Source={StaticResource Cols}}" />
+                    <ColumnDefinition Width="{Binding Percent, Source={StaticResource Cols}}" />
+                    <ColumnDefinition Width="{Binding Files, Source={StaticResource Cols}}" />
+                    <ColumnDefinition Width="{Binding Folders, Source={StaticResource Cols}}" />
+                    <ColumnDefinition Width="{Binding Modified, Source={StaticResource Cols}}" />
+                    <ColumnDefinition Width="{Binding Attr, Source={StaticResource Cols}}" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Ad: girinti + genisletme oku + kategori renkli ikon + ad -->
+                <DockPanel Margin="{Binding Converter={StaticResource Conv.Depth}}" LastChildFill="True">
+                    <ToggleButton DockPanel.Dock="Left" Width="20" Height="20" Focusable="False" ClickMode="Press" VerticalAlignment="Center"
+                                  IsChecked="{Binding IsExpanded, Mode=TwoWay}"
+                                  Visibility="{Binding Children.Count, Converter={StaticResource Conv.Positive}}"
+                                  Style="{StaticResource TreeView.Expander}" />
+                    <TextBlock DockPanel.Dock="Left" Style="{StaticResource Fs.Icon}" Width="22" Margin="2,0,6,0" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding Name}" Style="{StaticResource Text.Body}" VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis" />
+                </DockPanel>
+
+                <TextBlock Grid.Column="1" Text="{Binding SizeDisplay}" Style="{StaticResource Cell.Num}" />
+                <TextBlock Grid.Column="2" Text="{Binding AllocatedSizeDisplay}" Style="{StaticResource Cell.Num}"
+                           Foreground="{DynamicResource Brush.Text.Secondary}" />
+
+                <!-- Ust %'si: oransal bar + yuzde -->
+                <Grid Grid.Column="3" Margin="8,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="46" />
+                    </Grid.ColumnDefinitions>
+                    <Grid Height="6" VerticalAlignment="Center" Margin="0,0,8,0">
+                        <Border Background="{DynamicResource Brush.Bg.Subtle}" CornerRadius="3" />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="{Binding PercentOfParent, Converter={StaticResource Conv.PctToStar}, ConverterParameter=fill}" />
+                                <ColumnDefinition Width="{Binding PercentOfParent, Converter={StaticResource Conv.PctToStar}, ConverterParameter=rest}" />
+                            </Grid.ColumnDefinitions>
+                            <Border Style="{StaticResource Fs.BarFill}" />
+                        </Grid>
+                    </Grid>
+                    <TextBlock Grid.Column="1" Text="{Binding PercentOfParentDisplay}" Style="{StaticResource Text.Mono}"
+                               HorizontalAlignment="Right" VerticalAlignment="Center" />
+                </Grid>
+
+                <TextBlock Grid.Column="4" Text="{Binding FileCount, StringFormat={}{0:N0}}" Style="{StaticResource Cell.NumDir}" />
+                <TextBlock Grid.Column="5" Text="{Binding FolderCount, StringFormat={}{0:N0}}" Style="{StaticResource Cell.NumDir}" />
+                <TextBlock Grid.Column="6" Text="{Binding LastModified, StringFormat={}{0:dd.MM.yyyy HH:mm}}" Style="{StaticResource Cell.Num}"
+                           Foreground="{DynamicResource Brush.Text.Secondary}" />
+                <TextBlock Grid.Column="7" Text="{Binding AttributesDisplay}" Style="{StaticResource Cell.Num}"
+                           Foreground="{DynamicResource Brush.Text.Muted}" />
+            </Grid>
+        </HierarchicalDataTemplate>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Baslik: satirlarla ayni kolon genislikleri; sinirlar surukleyerek degisir -->
+        <Border Grid.Row="0" Background="{DynamicResource Brush.Bg.Surface}"
+                BorderBrush="{DynamicResource Brush.Border.Default}" BorderThickness="0,0,0,1"
+                Padding="8,0,12,0" Height="34">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" MinWidth="120" />
+                    <ColumnDefinition Width="{Binding Size, Source={StaticResource Cols}}" />
+                    <ColumnDefinition Width="{Binding Allocated, Source={StaticResource Cols}}" />
+                    <ColumnDefinition Width="{Binding Percent, Source={StaticResource Cols}}" />
+                    <ColumnDefinition Width="{Binding Files, Source={StaticResource Cols}}" />
+                    <ColumnDefinition Width="{Binding Folders, Source={StaticResource Cols}}" />
+                    <ColumnDefinition Width="{Binding Modified, Source={StaticResource Cols}}" />
+                    <ColumnDefinition Width="{Binding Attr, Source={StaticResource Cols}}" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="Ad" Style="{StaticResource Head.Text}" Margin="50,0,8,0" />
+                <TextBlock Grid.Column="1" Text="Boyut" Style="{StaticResource Head.Right}" />
+                <TextBlock Grid.Column="2" Text="Diskte" Style="{StaticResource Head.Right}" ToolTip="Kümeye yuvarlanmış, diskte kapladığı alan" />
+                <TextBlock Grid.Column="3" Text="Üst %'si" Style="{StaticResource Head.Text}" />
+                <TextBlock Grid.Column="4" Text="Dosya" Style="{StaticResource Head.Right}" />
+                <TextBlock Grid.Column="5" Text="Klasör" Style="{StaticResource Head.Right}" />
+                <TextBlock Grid.Column="6" Text="Son değişiklik" Style="{StaticResource Head.Right}" />
+                <TextBlock Grid.Column="7" Text="Öznitelik" Style="{StaticResource Head.Right}" />
+
+                <Thumb Grid.Column="1" Tag="Size" Style="{StaticResource Splitter.Handle}" DragDelta="Splitter_DragDelta" />
+                <Thumb Grid.Column="2" Tag="Allocated" Style="{StaticResource Splitter.Handle}" DragDelta="Splitter_DragDelta" />
+                <Thumb Grid.Column="3" Tag="Percent" Style="{StaticResource Splitter.Handle}" DragDelta="Splitter_DragDelta" />
+                <Thumb Grid.Column="4" Tag="Files" Style="{StaticResource Splitter.Handle}" DragDelta="Splitter_DragDelta" />
+                <Thumb Grid.Column="5" Tag="Folders" Style="{StaticResource Splitter.Handle}" DragDelta="Splitter_DragDelta" />
+                <Thumb Grid.Column="6" Tag="Modified" Style="{StaticResource Splitter.Handle}" DragDelta="Splitter_DragDelta" />
+                <Thumb Grid.Column="7" Tag="Attr" Style="{StaticResource Splitter.Handle}" DragDelta="Splitter_DragDelta" />
+            </Grid>
+        </Border>
+
+        <TreeView x:Name="Tree" Grid.Row="1" ItemsSource="{Binding RootCollection}"
+                  Padding="8,4,0,4"
+                  ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Visible"
+                  VirtualizingPanel.IsVirtualizing="True"
+                  VirtualizingPanel.VirtualizationMode="Recycling"
+                  VirtualizingPanel.ScrollUnit="Pixel"
+                  SelectedItemChanged="Tree_SelectedItemChanged"
+                  PreviewMouseRightButtonDown="Tree_PreviewMouseRightButtonDown">
+            <TreeView.ItemContainerStyle>
+                <Style TargetType="TreeViewItem" BasedOn="{StaticResource {x:Type TreeViewItem}}">
+                    <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}" />
+                    <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}" />
+                    <Setter Property="Visibility" Value="{Binding IsFilteredOut, Converter={StaticResource Conv.FilteredToVis}}" />
+                    <Setter Property="Tag" Value="{Binding DataContext, RelativeSource={RelativeSource AncestorType=TreeView}}" />
+                    <Setter Property="ContextMenu" Value="{StaticResource ItemContextMenu}" />
+                </Style>
+            </TreeView.ItemContainerStyle>
+        </TreeView>
+
+        <!-- Arama sonucu yok -->
+        <Border Grid.Row="1" Background="{DynamicResource Brush.Bg.Base}"
+                Visibility="{Binding ShowNoSearchResults, Converter={StaticResource Conv.BoolToVis}}">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock Text="{StaticResource Icon.Search}" Style="{StaticResource Text.Icon}" FontSize="32"
+                           Foreground="{DynamicResource Brush.Text.Muted}" HorizontalAlignment="Center" />
+                <TextBlock Style="{StaticResource Text.Subtitle}" Margin="0,16,0,0" HorizontalAlignment="Center">
+                    <Run Text="“" /><Run Text="{Binding SearchText, Mode=OneWay}" /><Run Text="” için sonuç yok" />
+                </TextBlock>
+                <TextBlock Text="Farklı bir ad deneyin ya da aramayı temizleyin." Style="{StaticResource Text.Secondary}"
+                           Margin="0,4,0,16" HorizontalAlignment="Center" />
+                <Button Content="Aramayı temizle" Command="{Binding ClearSearchCommand}" HorizontalAlignment="Center" />
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

@@ -1,0 +1,75 @@
+<UserControl x:Class="AmberTree.Views.TreemapView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:AmberTree.Controls"
+             Focusable="False">
+    <UserControl.InputBindings>
+        <KeyBinding Key="Back" Command="{Binding TreemapUpCommand}" />
+    </UserControl.InputBindings>
+    <Grid Margin="16,12,16,12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Breadcrumb + Yukari -->
+        <Grid Grid.Row="0" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Button Style="{StaticResource Button.Icon}" Content="{StaticResource Icon.Up}"
+                    Command="{Binding TreemapUpCommand}" ToolTip="Üst klasör (Backspace)"
+                    AutomationProperties.Name="Üst klasöre çık" Margin="0,0,8,0" />
+            <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled"
+                          x:Name="CrumbScroll" VerticalAlignment="Center">
+                <ItemsControl ItemsSource="{Binding TreemapBreadcrumb}" Focusable="False">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock x:Name="Sep" Text="{StaticResource Icon.ChevronRight}" Style="{StaticResource Text.Icon}"
+                                           FontSize="10" Foreground="{DynamicResource Brush.Text.Muted}" VerticalAlignment="Center"
+                                           Margin="2,0" />
+                                <Button Style="{StaticResource Button.Ghost}" Content="{Binding Name}" Padding="8,2" MinHeight="28"
+                                        Command="{Binding DataContext.TreemapNavigateCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        CommandParameter="{Binding}" ToolTip="{Binding FullPath}" />
+                            </StackPanel>
+                            <DataTemplate.Triggers>
+                                <DataTrigger Binding="{Binding Parent}" Value="{x:Null}">
+                                    <Setter TargetName="Sep" Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                            </DataTemplate.Triggers>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Grid>
+
+        <Border Grid.Row="1" Style="{StaticResource Border.Card}" Padding="0" ClipToBounds="True">
+            <controls:TreemapCanvas x:Name="Map" SourceItem="{Binding TreemapRoot}"
+                                    ItemActivatedCommand="{Binding TreemapNavigateCommand}"
+                                    TileContextMenu="{StaticResource ItemContextMenu}"
+                                    ItemSelected="Map_ItemSelected" />
+        </Border>
+
+        <!-- Secili oge + lejant -->
+        <Grid Grid.Row="2" Margin="0,8,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Style="{StaticResource Text.Mono}" Foreground="{DynamicResource Brush.Text.Secondary}"
+                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="0,0,16,0">
+                <Run Text="{Binding SelectedItem.FullPath, Mode=OneWay, FallbackValue='Bir kareye tıklayın; çift tık klasöre girer.'}" />
+            </TextBlock>
+            <WrapPanel x:Name="Legend" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"
+                       MaxWidth="560" />
+        </Grid>
+    </Grid>
+</UserControl>
