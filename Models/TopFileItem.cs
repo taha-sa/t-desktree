@@ -1,8 +1,10 @@
 using System;
+using System.Text.Json.Serialization;
+using AmberTree.Converters;
 
 namespace AmberTree.Models;
 
-public class TopFileItem
+public class TopFileItem : ObservableBase
 {
     public int Rank { get; set; }
     public string Name { get; set; } = string.Empty;
@@ -15,4 +17,16 @@ public class TopFileItem
     public double PercentOfTotal { get; set; }
 
     public string PercentDisplay => $"{PercentOfTotal:F2}%";
+
+    [JsonIgnore]
+    public string SizeDisplay => SizeFormatter.FormatBytes(Size, SizeFormatter.CurrentMode);
+
+    [JsonIgnore]
+    public string AllocatedSizeDisplay => SizeFormatter.FormatBytes(AllocatedSize, SizeFormatter.CurrentMode);
+
+    public void NotifyUnitChanged()
+    {
+        Raise(nameof(SizeDisplay));
+        Raise(nameof(AllocatedSizeDisplay));
+    }
 }

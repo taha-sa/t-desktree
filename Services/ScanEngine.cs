@@ -90,11 +90,11 @@ public class ScanEngine
         // Build Age distribution
         var ageList = new List<AgeDistributionItem>
         {
-            new() { RangeName = "< 1 Month", FileCount = ageCounts[0], TotalSize = ageBuckets[0], PercentOfTotal = totalSize > 0 ? (double)ageBuckets[0] / totalSize * 100.0 : 0 },
-            new() { RangeName = "1 - 3 Months", FileCount = ageCounts[1], TotalSize = ageBuckets[1], PercentOfTotal = totalSize > 0 ? (double)ageBuckets[1] / totalSize * 100.0 : 0 },
-            new() { RangeName = "3 - 6 Months", FileCount = ageCounts[2], TotalSize = ageBuckets[2], PercentOfTotal = totalSize > 0 ? (double)ageBuckets[2] / totalSize * 100.0 : 0 },
-            new() { RangeName = "6 - 12 Months", FileCount = ageCounts[3], TotalSize = ageBuckets[3], PercentOfTotal = totalSize > 0 ? (double)ageBuckets[3] / totalSize * 100.0 : 0 },
-            new() { RangeName = "> 1 Year", FileCount = ageCounts[4], TotalSize = ageBuckets[4], PercentOfTotal = totalSize > 0 ? (double)ageBuckets[4] / totalSize * 100.0 : 0 },
+            new() { RangeName = TreeMaintenance.AgeRangeNames[0], FileCount = ageCounts[0], TotalSize = ageBuckets[0], PercentOfTotal = totalSize > 0 ? (double)ageBuckets[0] / totalSize * 100.0 : 0 },
+            new() { RangeName = TreeMaintenance.AgeRangeNames[1], FileCount = ageCounts[1], TotalSize = ageBuckets[1], PercentOfTotal = totalSize > 0 ? (double)ageBuckets[1] / totalSize * 100.0 : 0 },
+            new() { RangeName = TreeMaintenance.AgeRangeNames[2], FileCount = ageCounts[2], TotalSize = ageBuckets[2], PercentOfTotal = totalSize > 0 ? (double)ageBuckets[2] / totalSize * 100.0 : 0 },
+            new() { RangeName = TreeMaintenance.AgeRangeNames[3], FileCount = ageCounts[3], TotalSize = ageBuckets[3], PercentOfTotal = totalSize > 0 ? (double)ageBuckets[3] / totalSize * 100.0 : 0 },
+            new() { RangeName = TreeMaintenance.AgeRangeNames[4], FileCount = ageCounts[4], TotalSize = ageBuckets[4], PercentOfTotal = totalSize > 0 ? (double)ageBuckets[4] / totalSize * 100.0 : 0 },
         };
 
         return new ScanResult
@@ -213,7 +213,7 @@ public class ScanEngine
 
                     // Track Extension
                     string ext = Path.GetExtension(name).ToLowerInvariant();
-                    if (string.IsNullOrEmpty(ext)) ext = "[No Extension]";
+                    if (string.IsNullOrEmpty(ext)) ext = TreeMaintenance.NoExtensionLabel;
                     extStats.AddOrUpdate(ext, (1, fileSize, allocated), (k, old) => (old.count + 1, old.size + fileSize, old.alloc + allocated));
 
                     // Track Top Files (keep candidate items if reasonably large)
@@ -302,23 +302,23 @@ public class ScanEngine
         }
     }
 
-    private static string GetExtensionDescription(string ext) => ext.ToLowerInvariant() switch
+    public static string GetExtensionDescription(string ext) => ext.ToLowerInvariant() switch
     {
-        ".exe" => "Executable Application",
-        ".dll" => "Dynamic Link Library",
-        ".sys" => "System Driver",
-        ".zip" or ".rar" or ".7z" or ".tar" or ".gz" => "Compressed Archive",
-        ".mp4" or ".mkv" or ".avi" or ".mov" or ".wmv" => "Video File",
-        ".mp3" or ".wav" or ".flac" or ".aac" or ".ogg" => "Audio File",
-        ".jpg" or ".jpeg" or ".png" or ".gif" or ".webp" or ".bmp" or ".svg" => "Image File",
-        ".pdf" => "PDF Document",
-        ".docx" or ".doc" => "Word Document",
-        ".xlsx" or ".xls" => "Excel Spreadsheet",
-        ".pptx" or ".ppt" => "PowerPoint Presentation",
-        ".txt" or ".log" or ".md" => "Text / Log File",
-        ".json" or ".xml" or ".yaml" or ".yml" => "Structured Data",
-        ".iso" or ".img" or ".vhd" or ".vhdx" => "Disk Image",
-        ".cs" or ".cpp" or ".c" or ".h" or ".py" or ".js" or ".ts" => "Source Code",
-        _ => "File"
+        ".exe" => "Çalıştırılabilir uygulama",
+        ".dll" => "Dinamik bağlantı kitaplığı (DLL)",
+        ".sys" => "Sistem sürücüsü",
+        ".zip" or ".rar" or ".7z" or ".tar" or ".gz" => "Sıkıştırılmış arşiv",
+        ".mp4" or ".mkv" or ".avi" or ".mov" or ".wmv" => "Video dosyası",
+        ".mp3" or ".wav" or ".flac" or ".aac" or ".ogg" => "Ses dosyası",
+        ".jpg" or ".jpeg" or ".png" or ".gif" or ".webp" or ".bmp" or ".svg" => "Resim dosyası",
+        ".pdf" => "PDF belgesi",
+        ".docx" or ".doc" => "Word belgesi",
+        ".xlsx" or ".xls" => "Excel çalışma sayfası",
+        ".pptx" or ".ppt" => "PowerPoint sunusu",
+        ".txt" or ".log" or ".md" => "Metin / günlük dosyası",
+        ".json" or ".xml" or ".yaml" or ".yml" => "Yapılandırılmış veri",
+        ".iso" or ".img" or ".vhd" or ".vhdx" => "Disk görüntüsü",
+        ".cs" or ".cpp" or ".c" or ".h" or ".py" or ".js" or ".ts" => "Kaynak kod",
+        _ => "Dosya"
     };
 }

@@ -9,8 +9,11 @@ namespace AmberTree.Services;
 
 public static class ShellHelper
 {
-    public static void OpenInExplorer(string path)
+    // --- Hata dondurenler (VM kullanir; MessageBox yok) ---
+
+    public static bool TryOpenInExplorer(string path, out string? error)
     {
+        error = null;
         try
         {
             if (File.Exists(path))
@@ -21,15 +24,23 @@ public static class ShellHelper
             {
                 Process.Start("explorer.exe", $"\"{path}\"");
             }
+            else
+            {
+                error = "Yol bulunamadı: " + path;
+                return false;
+            }
+            return true;
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Could not open in Explorer: {ex.Message}", "AmberTree", MessageBoxButton.OK, MessageBoxImage.Warning);
+            error = "Gezginde açılamadı: " + ex.Message;
+            return false;
         }
     }
 
-    public static void OpenTerminal(string path)
+    public static bool TryOpenTerminal(string path, out string? error)
     {
+        error = null;
         try
         {
             string dir = Directory.Exists(path) ? path : (Path.GetDirectoryName(path) ?? "C:\\");
@@ -40,29 +51,33 @@ public static class ShellHelper
                 UseShellExecute = true
             };
             Process.Start(psi);
+            return true;
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Could not open Command Prompt: {ex.Message}", "AmberTree", MessageBoxButton.OK, MessageBoxImage.Warning);
+            error = "Komut istemi açılamadı: " + ex.Message;
+            return false;
         }
     }
 
-    public static void CopyPath(string path)
+    public static bool TryCopyPath(string path, out string? error)
     {
+        error = null;
         try
         {
             Clipboard.SetText(path);
+            return true;
         }
-        catch { }
+        catch (Exception ex)
+        {
+            error = "Panoya kopyalanamadı: " + ex.Message;
+            return false;
+        }
     }
 
-    public static bool MoveToRecycleBin(string path)
+    public static bool TryPermanentDelete(string path, out string? error)
     {
-        return NativeFileSystem.MoveToRecycleBin(path);
-    }
-
-    public static bool PermanentDelete(string path)
-    {
+        error = null;
         try
         {
             if (File.Exists(path))
@@ -75,13 +90,29 @@ public static class ShellHelper
                 Directory.Delete(path, true);
                 return true;
             }
+            error = "Yol bulunamadı: " + path;
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Delete failed: {ex.Message}", "AmberTree", MessageBoxButton.OK, MessageBoxImage.Error);
+            error = "Silinemedi: " + ex.Message;
         }
         return false;
     }
+
+    // --- Eski imzalar (geriye uyumluluk; artik iletisim kutusu gostermez) ---
+
+    public static void OpenInExplorer(string path) => TryOpenInExplorer(path, out _);
+
+    public static void OpenTerminal(string path) => TryOpenTerminal(path, out _);
+
+    public static void CopyPath(string path) => TryCopyPath(path, out _);
+
+    public static bool MoveToRecycleBin(string path)
+    {
+        return NativeFileSystem.MoveToRecycleBin(path);
+    }
+
+    public static bool PermanentDelete(string path) => TryPermanentDelete(path, out _);
 
     public static List<DriveInfoModel> GetSystemDrives()
     {

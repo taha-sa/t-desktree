@@ -17,6 +17,7 @@ public partial class App : Application
             return;
         }
 
+        ThemeService.Current.LoadSaved();
         base.OnStartup(e);
     }
 

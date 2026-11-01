@@ -1,0 +1,67 @@
+<!-- Renk token'lari: Dark tema. Iki Tokens dosyasinin anahtar kumesi birebir ayni olmali. -->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Color x:Key="Color.Bg.Base">#0E1014</Color>
+    <SolidColorBrush x:Key="Brush.Bg.Base" Color="{StaticResource Color.Bg.Base}" />
+    <Color x:Key="Color.Bg.Surface">#161920</Color>
+    <SolidColorBrush x:Key="Brush.Bg.Surface" Color="{StaticResource Color.Bg.Surface}" />
+    <Color x:Key="Color.Bg.Elevated">#1E222B</Color>
+    <SolidColorBrush x:Key="Brush.Bg.Elevated" Color="{StaticResource Color.Bg.Elevated}" />
+    <Color x:Key="Color.Bg.Subtle">#252A35</Color>
+    <SolidColorBrush x:Key="Brush.Bg.Subtle" Color="{StaticResource Color.Bg.Subtle}" />
+    <Color x:Key="Color.Border.Default">#2A2F3A</Color>
+    <SolidColorBrush x:Key="Brush.Border.Default" Color="{StaticResource Color.Border.Default}" />
+    <Color x:Key="Color.Border.Strong">#3A4150</Color>
+    <SolidColorBrush x:Key="Brush.Border.Strong" Color="{StaticResource Color.Border.Strong}" />
+    <Color x:Key="Color.Text.Primary">#E8EAEE</Color>
+    <SolidColorBrush x:Key="Brush.Text.Primary" Color="{StaticResource Color.Text.Primary}" />
+    <Color x:Key="Color.Text.Secondary">#A3AAB8</Color>
+    <SolidColorBrush x:Key="Brush.Text.Secondary" Color="{StaticResource Color.Text.Secondary}" />
+    <Color x:Key="Color.Text.Muted">#7C8494</Color>
+    <SolidColorBrush x:Key="Brush.Text.Muted" Color="{StaticResource Color.Text.Muted}" />
+    <Color x:Key="Color.Accent">#3DD6C4</Color>
+    <SolidColorBrush x:Key="Brush.Accent" Color="{StaticResource Color.Accent}" />
+    <Color x:Key="Color.Accent.Hover">#5FE3D3</Color>
+    <SolidColorBrush x:Key="Brush.Accent.Hover" Color="{StaticResource Color.Accent.Hover}" />
+    <Color x:Key="Color.Accent.Pressed">#2DB8A8</Color>
+    <SolidColorBrush x:Key="Brush.Accent.Pressed" Color="{StaticResource Color.Accent.Pressed}" />
+    <Color x:Key="Color.Accent.Fg">#06201D</Color>
+    <SolidColorBrush x:Key="Brush.Accent.Fg" Color="{StaticResource Color.Accent.Fg}" />
+    <Color x:Key="Color.Accent.Soft">#243DD6C4</Color>
+    <SolidColorBrush x:Key="Brush.Accent.Soft" Color="{StaticResource Color.Accent.Soft}" />
+    <Color x:Key="Color.Danger">#F2616B</Color>
+    <SolidColorBrush x:Key="Brush.Danger" Color="{StaticResource Color.Danger}" />
+    <Color x:Key="Color.Danger.Hover">#F58189</Color>
+    <SolidColorBrush x:Key="Brush.Danger.Hover" Color="{StaticResource Color.Danger.Hover}" />
+    <Color x:Key="Color.Danger.Fg">#2A0A0D</Color>
+    <SolidColorBrush x:Key="Brush.Danger.Fg" Color="{StaticResource Color.Danger.Fg}" />
+    <Color x:Key="Color.Danger.Soft">#24F2616B</Color>
+    <SolidColorBrush x:Key="Brush.Danger.Soft" Color="{StaticResource Color.Danger.Soft}" />
+    <Color x:Key="Color.Warning">#F2B455</Color>
+    <SolidColorBrush x:Key="Brush.Warning" Color="{StaticResource Color.Warning}" />
+    <Color x:Key="Color.Warning.Soft">#24F2B455</Color>
+    <SolidColorBrush x:Key="Brush.Warning.Soft" Color="{StaticResource Color.Warning.Soft}" />
+    <Color x:Key="Color.Success">#4CC38A</Color>
+    <SolidColorBrush x:Key="Brush.Success" Color="{StaticResource Color.Success}" />
+    <Color x:Key="Color.Success.Soft">#244CC38A</Color>
+    <SolidColorBrush x:Key="Brush.Success.Soft" Color="{StaticResource Color.Success.Soft}" />
+    <Color x:Key="Color.Shadow">#000000</Color>
+    <SolidColorBrush x:Key="Brush.Shadow" Color="{StaticResource Color.Shadow}" />
+    <Color x:Key="Color.Cat.Video">#7C6CF2</Color>
+    <SolidColorBrush x:Key="Brush.Cat.Video" Color="{StaticResource Color.Cat.Video}" />
+    <Color x:Key="Color.Cat.Image">#3DA5F2</Color>
+    <SolidColorBrush x:Key="Brush.Cat.Image" Color="{StaticResource Color.Cat.Image}" />
+    <Color x:Key="Color.Cat.Audio">#E879C6</Color>
+    <SolidColorBrush x:Key="Brush.Cat.Audio" Color="{StaticResource Color.Cat.Audio}" />
+    <Color x:Key="Color.Cat.Archive">#F2B455</Color>
+    <SolidColorBrush x:Key="Brush.Cat.Archive" Color="{StaticResource Color.Cat.Archive}" />
+    <Color x:Key="Color.Cat.Code">#4CC38A</Color>
+    <SolidColorBrush x:Key="Brush.Cat.Code" Color="{StaticResource Color.Cat.Code}" />
+    <Color x:Key="Color.Cat.Executable">#F2616B</Color>
+    <SolidColorBrush x:Key="Brush.Cat.Executable" Color="{StaticResource Color.Cat.Executable}" />
+    <Color x:Key="Color.Cat.Document">#3DD6C4</Color>
+    <SolidColorBrush x:Key="Brush.Cat.Document" Color="{StaticResource Color.Cat.Document}" />
+    <Color x:Key="Color.Cat.Other">#7C8494</Color>
+    <SolidColorBrush x:Key="Brush.Cat.Other" Color="{StaticResource Color.Cat.Other}" />
+</ResourceDictionary>

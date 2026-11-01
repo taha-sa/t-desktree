@@ -3,6 +3,9 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Text.Json.Serialization;
+using AmberTree.Converters;
+using AmberTree.Services;
 
 namespace AmberTree.Models;
 
@@ -93,6 +96,43 @@ public class FsItem : INotifyPropertyChanged
                 OnPropertyChanged(nameof(PercentOfTotalDisplay));
             }
         }
+    }
+
+    private FileCategory? _category;
+
+    /// <summary>Dosya turu kategorisi (tembel hesaplanir). Klasorler icin anlamli degildir; IsDirectory'ye bakin.</summary>
+    [JsonIgnore]
+    public FileCategory Category
+    {
+        get
+        {
+            _category ??= IsDirectory ? default(FileCategory) : FileCategoryMap.FromExtension(Path.GetExtension(Name));
+            return _category.Value;
+        }
+    }
+
+    [JsonIgnore]
+    public string SizeDisplay => SizeFormatter.FormatBytes(Size, SizeFormatter.CurrentMode);
+
+    [JsonIgnore]
+    public string AllocatedSizeDisplay => SizeFormatter.FormatBytes(AllocatedSize, SizeFormatter.CurrentMode);
+
+    /// <summary>Size/AllocatedSize/FileCount/FolderCount degistikten sonra cagrilir.</summary>
+    public void NotifySizesChanged()
+    {
+        OnPropertyChanged(nameof(Size));
+        OnPropertyChanged(nameof(AllocatedSize));
+        OnPropertyChanged(nameof(FileCount));
+        OnPropertyChanged(nameof(FolderCount));
+        OnPropertyChanged(nameof(SizeDisplay));
+        OnPropertyChanged(nameof(AllocatedSizeDisplay));
+    }
+
+    /// <summary>Birim modu degisince yalnizca goruntu metinlerini yeniler.</summary>
+    public void NotifyUnitChanged()
+    {
+        OnPropertyChanged(nameof(SizeDisplay));
+        OnPropertyChanged(nameof(AllocatedSizeDisplay));
     }
 
     public string PercentOfParentDisplay => $"{PercentOfParent:F1}%";
