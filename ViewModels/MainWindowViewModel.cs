@@ -354,7 +354,7 @@ public class MainWindowViewModel : INotifyPropertyChanged
     public string TotalAllocatedDisplay => SizeFormatter.FormatBytes(RootItem?.AllocatedSize ?? 0, CurrentUnitMode);
     public string TotalFilesDisplay => (RootItem?.FileCount ?? 0).ToString("N0", CultureInfo.CurrentCulture);
     public string TotalFoldersDisplay => (RootItem?.FolderCount ?? 0).ToString("N0", CultureInfo.CurrentCulture);
-    public string ScanDurationDisplay => $"{_lastScanDuration.TotalSeconds:F1} sn";
+    public string ScanDurationDisplay => IsScanning ? ElapsedScanTime : $"{_lastScanDuration.TotalSeconds:F1} sn";
 
     /// <summary>Tarama sonrasi taranan yolun, tarama oncesi secili surucunun doluluk yuzdesi (0-100).</summary>
     public double DriveUsedPercent => ResolveSummaryDrive()?.UsedPercentage ?? 0.0;
@@ -514,8 +514,6 @@ public class MainWindowViewModel : INotifyPropertyChanged
 
         ThemeService.Current.ThemeChanged += (_, _) => OnPropertyChanged(nameof(IsDarkTheme));
         _scanEngine.ProgressChanged += OnScanProgress;
-        _scanEngine.DirectChildrenDiscovered += OnDirectChildrenDiscovered;
-        _scanEngine.FolderScanned += OnFolderScanned;
 
         LoadLastScannedPath();
         LoadDrives();
@@ -592,30 +590,6 @@ public class MainWindowViewModel : INotifyPropertyChanged
             }
 
             RaiseSummary();
-        });
-    }
-
-    private void OnDirectChildrenDiscovered(FsItem folder, IReadOnlyList<FsItem> children)
-    {
-        if (RootItem != null && (folder == RootItem || folder.FullPath.Equals(RootItem.FullPath, StringComparison.OrdinalIgnoreCase)))
-        {
-            _ui.Post(() =>
-            {
-                if (RootItem == null) return;
-                RootItem.Children.Clear();
-                foreach (var c in children)
-                {
-                    RootItem.Children.Add(c);
-                }
-            });
-        }
-    }
-
-    private void OnFolderScanned(FsItem folder)
-    {
-        _ui.Post(() =>
-        {
-            folder.NotifySizesChanged();
         });
     }
 

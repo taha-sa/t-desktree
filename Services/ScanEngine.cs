@@ -19,8 +19,6 @@ public class ScanEngine
     private DateTime _lastProgressReport = DateTime.MinValue;
 
     public event Action<ScanProgress>? ProgressChanged;
-    public event Action<FsItem, IReadOnlyList<FsItem>>? DirectChildrenDiscovered;
-    public event Action<FsItem>? FolderScanned;
 
     public async Task<ScanResult> ScanAsync(string targetPath, CancellationToken cancellationToken)
     {
@@ -251,12 +249,6 @@ public class ScanEngine
         foreach (var sub in subFolders) folder.Children.Add(sub);
         foreach (var f in directFiles) folder.Children.Add(f);
 
-        // Notify that immediate children have been discovered (so root shows subfolders immediately)
-        if (folder.Parent == null)
-        {
-            DirectChildrenDiscovered?.Invoke(folder, folder.Children.ToList());
-        }
-
         // Recurse into subfolders
         foreach (var sub in subFolders)
         {
@@ -272,11 +264,6 @@ public class ScanEngine
             folder.AllocatedSize += sub.AllocatedSize;
             folder.FileCount += sub.FileCount;
             folder.FolderCount += 1 + sub.FolderCount;
-
-            if (folder.Parent == null)
-            {
-                FolderScanned?.Invoke(sub);
-            }
         }
     }
 
