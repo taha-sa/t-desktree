@@ -68,7 +68,6 @@ public class MainWindowViewModel : INotifyPropertyChanged
     public ObservableCollection<ExtensionStat> Extensions { get; } = new();
     public ObservableCollection<TopFileItem> TopFiles { get; } = new();
     public ObservableCollection<AgeDistributionItem> AgeDistribution { get; } = new();
-    public ObservableCollection<DiscoveredFileItem> DiscoveredFiles { get; } = new();
 
     /// <summary>Kokten TreemapRoot'a kadar olan klasorler (breadcrumb).</summary>
     public ObservableCollection<FsItem> TreemapBreadcrumb { get; } = new();
@@ -94,7 +93,7 @@ public class MainWindowViewModel : INotifyPropertyChanged
 
     public bool IsEmptyView => ViewState == ViewState.Empty;
     public bool IsScanningView => ViewState == ViewState.Scanning;
-    public bool IsResultsView => ViewState == ViewState.Results;
+    public bool IsResultsView => ViewState == ViewState.Results || ViewState == ViewState.Scanning;
     public bool IsErrorView => ViewState == ViewState.Error;
 
     public ActiveView ActiveView
@@ -515,6 +514,8 @@ public class MainWindowViewModel : INotifyPropertyChanged
 
         ThemeService.Current.ThemeChanged += (_, _) => OnPropertyChanged(nameof(IsDarkTheme));
         _scanEngine.ProgressChanged += OnScanProgress;
+        _scanEngine.DirectChildrenDiscovered += OnDirectChildrenDiscovered;
+        _scanEngine.FolderScanned += OnFolderScanned;
 
         LoadLastScannedPath();
         LoadDrives();
@@ -581,18 +582,40 @@ public class MainWindowViewModel : INotifyPropertyChanged
             ElapsedScanTime = p.Elapsed.ToString(@"hh\:mm\:ss\.f");
             ScanSpeed = $"{p.FilesPerSecond:N0} dosya/sn";
 
-            if (p.RecentFiles != null && p.RecentFiles.Count > 0)
+            if (RootItem != null)
             {
-                foreach (var file in p.RecentFiles)
-                {
-                    DiscoveredFiles.Insert(0, file);
-                }
-
-                while (DiscoveredFiles.Count > 500)
-                {
-                    DiscoveredFiles.RemoveAt(DiscoveredFiles.Count - 1);
-                }
+                RootItem.Size = p.BytesScanned;
+                RootItem.AllocatedSize = p.BytesScanned;
+                RootItem.FileCount = p.FilesScanned;
+                RootItem.FolderCount = p.FoldersScanned;
+                RootItem.NotifySizesChanged();
             }
+
+            RaiseSummary();
+        });
+    }
+
+    private void OnDirectChildrenDiscovered(FsItem folder, IReadOnlyList<FsItem> children)
+    {
+        if (RootItem != null && (folder == RootItem || folder.FullPath.Equals(RootItem.FullPath, StringComparison.OrdinalIgnoreCase)))
+        {
+            _ui.Post(() =>
+            {
+                if (RootItem == null) return;
+                RootItem.Children.Clear();
+                foreach (var c in children)
+                {
+                    RootItem.Children.Add(c);
+                }
+            });
+        }
+    }
+
+    private void OnFolderScanned(FsItem folder)
+    {
+        _ui.Post(() =>
+        {
+            folder.NotifySizesChanged();
         });
     }
 
@@ -621,7 +644,21 @@ public class MainWindowViewModel : INotifyPropertyChanged
         SearchText = string.Empty;
         ResetCounters();
         ClearResults();
-        ViewState = ViewState.Scanning;
+
+        var dirInfo = new DirectoryInfo(scanPath);
+        RootItem = new FsItem
+        {
+            Name = string.IsNullOrEmpty(dirInfo.Name) ? scanPath : dirInfo.Name,
+            FullPath = scanPath,
+            IsDirectory = true,
+            LastModified = dirInfo.Exists ? dirInfo.LastWriteTime : DateTime.Now,
+            Attributes = dirInfo.Exists ? dirInfo.Attributes : FileAttributes.Directory,
+            IsExpanded = true
+        };
+        RootCollection.Clear();
+        RootCollection.Add(RootItem);
+
+        ViewState = ViewState.Results;
         IsScanning = true;
         StatusText = $"Taranıyor: {scanPath}...";
         _cts = new CancellationTokenSource();
@@ -704,7 +741,6 @@ public class MainWindowViewModel : INotifyPropertyChanged
         Extensions.Clear();
         TopFiles.Clear();
         AgeDistribution.Clear();
-        DiscoveredFiles.Clear();
     }
 
     private static void ReplaceCollection<T>(ObservableCollection<T> target, IEnumerable<T> items)
@@ -719,12 +755,11 @@ public class MainWindowViewModel : INotifyPropertyChanged
     {
         FsItem f => f,
         TopFileItem t => TreeMaintenance.FindByPath(RootItem, t.FullPath),
-        DiscoveredFileItem d => TreeMaintenance.FindByPath(RootItem, d.FullPath),
         null => SelectedItem,
         _ => null
     };
 
-    private bool HasTarget(object? p) => p is FsItem or TopFileItem or DiscoveredFileItem || (p == null && SelectedItem != null);
+    private bool HasTarget(object? p) => p is FsItem or TopFileItem || (p == null && SelectedItem != null);
 
     private bool CanActOnItem(object? p) => !IsScanning && !_isDeleting && HasTarget(p);
 
@@ -931,7 +966,6 @@ public class MainWindowViewModel : INotifyPropertyChanged
         {
             FsItem f => f.FullPath,
             TopFileItem t => t.FullPath,
-            DiscoveredFileItem d => d.FullPath,
             null => SelectedItem?.FullPath,
             _ => null
         };

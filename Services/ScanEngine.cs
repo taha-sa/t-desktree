@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using AmberTree.Models;
@@ -18,9 +17,10 @@ public class ScanEngine
     private long _foldersScanned;
     private long _bytesScanned;
     private DateTime _lastProgressReport = DateTime.MinValue;
-    private readonly ConcurrentQueue<DiscoveredFileItem> _recentFilesBuffer = new();
 
     public event Action<ScanProgress>? ProgressChanged;
+    public event Action<FsItem, IReadOnlyList<FsItem>>? DirectChildrenDiscovered;
+    public event Action<FsItem>? FolderScanned;
 
     public async Task<ScanResult> ScanAsync(string targetPath, CancellationToken cancellationToken)
     {
@@ -29,7 +29,6 @@ public class ScanEngine
         _foldersScanned = 0;
         _bytesScanned = 0;
         _lastProgressReport = DateTime.MinValue;
-        while (_recentFilesBuffer.TryDequeue(out _)) { }
 
         var extStats = new ConcurrentDictionary<string, (long count, long size, long alloc)>(StringComparer.OrdinalIgnoreCase);
         var topFiles = new ConcurrentBag<TopFileItem>();
@@ -57,25 +56,6 @@ public class ScanEngine
         }, cancellationToken);
 
         _stopwatch.Stop();
-
-        // Flush any remaining buffered files to progress listeners
-        if (!_recentFilesBuffer.IsEmpty)
-        {
-            var finalBatch = new List<DiscoveredFileItem>();
-            while (finalBatch.Count < 50 && _recentFilesBuffer.TryDequeue(out var item))
-            {
-                finalBatch.Add(item);
-            }
-            ProgressChanged?.Invoke(new ScanProgress
-            {
-                CurrentPath = targetPath,
-                FilesScanned = _filesScanned,
-                FoldersScanned = _foldersScanned,
-                BytesScanned = _bytesScanned,
-                Elapsed = _stopwatch.Elapsed,
-                RecentFiles = finalBatch
-            });
-        }
 
         if (root != null)
         {
@@ -164,6 +144,7 @@ public class ScanEngine
         }
 
         var subFolders = new List<FsItem>();
+        var directFiles = new List<FsItem>();
 
         try
         {
@@ -181,9 +162,6 @@ public class ScanEngine
 
                 if (isDir)
                 {
-                    // Avoid recursive loops through junction points / symlinks
-                    bool isReparse = (attrs & FileAttributes.ReparsePoint) != 0;
-
                     var childFolder = new FsItem
                     {
                         Name = name,
@@ -193,16 +171,6 @@ public class ScanEngine
                         LastModified = modified,
                         Parent = folder
                     };
-
-                    if (!isReparse)
-                    {
-                        ScanNode(childFolder, clusterSize, extStats, topFiles, ageBuckets, ageCounts, now, ct);
-                    }
-
-                    folder.Size += childFolder.Size;
-                    folder.AllocatedSize += childFolder.AllocatedSize;
-                    folder.FileCount += childFolder.FileCount;
-                    folder.FolderCount += 1 + childFolder.FolderCount;
 
                     subFolders.Add(childFolder);
                 }
@@ -265,17 +233,7 @@ public class ScanEngine
                     Interlocked.Add(ref ageBuckets[bucketIndex], fileSize);
                     Interlocked.Increment(ref ageCounts[bucketIndex]);
 
-                    folder.Children.Add(childFile);
-
-                    _recentFilesBuffer.Enqueue(new DiscoveredFileItem
-                    {
-                        Name = name,
-                        DirectoryPath = folder.FullPath,
-                        FullPath = childPath,
-                        Size = fileSize,
-                        Extension = ext,
-                        LastModified = modified
-                    });
+                    directFiles.Add(childFile);
 
                     if ((_filesScanned & 63) == 0)
                     {
@@ -289,10 +247,36 @@ public class ScanEngine
             NativeFileSystem.FindClose(hFind);
         }
 
-        // Add subfolders to folder children
+        // Add direct items to this folder
+        foreach (var sub in subFolders) folder.Children.Add(sub);
+        foreach (var f in directFiles) folder.Children.Add(f);
+
+        // Notify that immediate children have been discovered (so root shows subfolders immediately)
+        if (folder.Parent == null)
+        {
+            DirectChildrenDiscovered?.Invoke(folder, folder.Children.ToList());
+        }
+
+        // Recurse into subfolders
         foreach (var sub in subFolders)
         {
-            folder.Children.Add(sub);
+            if (ct.IsCancellationRequested) break;
+
+            bool isReparse = (sub.Attributes & FileAttributes.ReparsePoint) != 0;
+            if (!isReparse)
+            {
+                ScanNode(sub, clusterSize, extStats, topFiles, ageBuckets, ageCounts, now, ct);
+            }
+
+            folder.Size += sub.Size;
+            folder.AllocatedSize += sub.AllocatedSize;
+            folder.FileCount += sub.FileCount;
+            folder.FolderCount += 1 + sub.FolderCount;
+
+            if (folder.Parent == null)
+            {
+                FolderScanned?.Invoke(sub);
+            }
         }
     }
 
@@ -327,24 +311,13 @@ public class ScanEngine
         if ((now - _lastProgressReport).TotalMilliseconds >= 80)
         {
             _lastProgressReport = now;
-
-            var batch = new List<DiscoveredFileItem>();
-            while (batch.Count < 30 && _recentFilesBuffer.TryDequeue(out var item))
-            {
-                batch.Add(item);
-            }
-
-            // Buffer protection against runaway memory if file scan exceeds progress consumption
-            while (_recentFilesBuffer.Count > 500 && _recentFilesBuffer.TryDequeue(out _)) { }
-
             ProgressChanged?.Invoke(new ScanProgress
             {
                 CurrentPath = currentPath,
                 FilesScanned = _filesScanned,
                 FoldersScanned = _foldersScanned,
                 BytesScanned = _bytesScanned,
-                Elapsed = _stopwatch.Elapsed,
-                RecentFiles = batch
+                Elapsed = _stopwatch.Elapsed
             });
         }
     }

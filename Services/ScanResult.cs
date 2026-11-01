@@ -12,7 +12,6 @@ public class ScanProgress
     public long BytesScanned { get; set; }
     public TimeSpan Elapsed { get; set; }
     public double FilesPerSecond => Elapsed.TotalSeconds > 0 ? FilesScanned / Elapsed.TotalSeconds : 0;
-    public IReadOnlyList<DiscoveredFileItem> RecentFiles { get; set; } = Array.Empty<DiscoveredFileItem>();
 }
 
 public class ScanResult

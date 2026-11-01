@@ -111,15 +111,6 @@
                             </Setter.Value>
                         </Setter>
                         <Style.Triggers>
-                            <DataTrigger Binding="{Binding IsScanningView}" Value="True">
-                                <Setter Property="ContentTemplate">
-                                    <Setter.Value>
-                                        <DataTemplate>
-                                            <views:ScanningState />
-                                        </DataTemplate>
-                                    </Setter.Value>
-                                </Setter>
-                            </DataTrigger>
                             <DataTrigger Binding="{Binding IsResultsView}" Value="True">
                                 <Setter Property="ContentTemplate">
                                     <Setter.Value>

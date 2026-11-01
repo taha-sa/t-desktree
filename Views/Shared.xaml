@@ -125,17 +125,4 @@
                   Command="{Binding PlacementTarget.Tag.DeletePermanentCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                   CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
     </ContextMenu>
-
-    <!-- Canli taranan dosyalar menusu (parametre = tiklanan DiscoveredFileItem; Tag = ViewModel) -->
-    <ContextMenu x:Key="DiscoveredFileContextMenu">
-        <MenuItem Header="Explorer'da aç" Icon="{StaticResource Icon.Explorer}"
-                  Command="{Binding PlacementTarget.Tag.OpenInExplorerCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                  CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
-        <MenuItem Header="Terminalde aç" Icon="{StaticResource Icon.Terminal}"
-                  Command="{Binding PlacementTarget.Tag.OpenTerminalCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                  CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
-        <MenuItem Header="Yolu kopyala" Icon="{StaticResource Icon.Copy}"
-                  Command="{Binding PlacementTarget.Tag.CopyPathCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                  CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
-    </ContextMenu>
 </ResourceDictionary>

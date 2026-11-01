@@ -4,158 +4,64 @@
              Focusable="False">
     <UserControl.Resources>
         <Style x:Key="Counter.Value" TargetType="TextBlock" BasedOn="{StaticResource Text.Mono}">
-            <Setter Property="FontSize" Value="18" />
+            <Setter Property="FontSize" Value="20" />
             <Setter Property="FontWeight" Value="SemiBold" />
         </Style>
     </UserControl.Resources>
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Width="560" Margin="24">
+            <TextBlock Text="Taranıyor…" Style="{StaticResource Text.Title}" />
+            <TextBlock Text="{Binding StatusText}" Style="{StaticResource Text.Secondary}" Margin="0,4,0,16"
+                       TextTrimming="CharacterEllipsis" />
+            <ProgressBar IsIndeterminate="True" Height="4" Margin="0,0,0,24" />
 
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
-
-        <!-- Ust Panel: Ilerleme, Durum, Sayaclar ve Durdur Butonu -->
-        <Border Grid.Row="0" Margin="20,16,20,12">
-            <StackPanel>
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-
-                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                        <TextBlock Text="Taranıyor…" Style="{StaticResource Text.Title}" />
-                        <TextBlock Text="{Binding StatusText}" Style="{StaticResource Text.Secondary}" Margin="0,2,0,0"
-                                   TextTrimming="CharacterEllipsis" />
+            <UniformGrid Columns="4">
+                <Border Style="{StaticResource Border.Card}" Margin="0,0,8,0" Padding="12">
+                    <StackPanel>
+                        <TextBlock Text="Dosya" Style="{StaticResource Text.Muted}" />
+                        <TextBlock Text="{Binding ScannedFiles, StringFormat={}{0:N0}}" Style="{StaticResource Counter.Value}" Margin="0,4,0,0" />
                     </StackPanel>
-
-                    <Button Grid.Column="1" Style="{StaticResource Button.Danger}" Command="{Binding StopScanCommand}"
-                            MinWidth="130" Height="34" VerticalAlignment="Center" AutomationProperties.Name="Taramayı durdur">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="{StaticResource Icon.Stop}" FontFamily="{DynamicResource Font.Icons}" FontSize="13" Margin="0,0,8,0" VerticalAlignment="Center" />
-                            <TextBlock Text="Durdur (Esc)" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Button>
-                </Grid>
-
-                <ProgressBar IsIndeterminate="True" Height="4" Margin="0,10,0,12" />
-
-                <!-- Sayac Kartlari: Dosya, Klasor, Boyut, Hiz & Sure -->
-                <UniformGrid Columns="4">
-                    <Border Style="{StaticResource Border.Card}" Margin="0,0,8,0" Padding="12,10">
-                        <StackPanel>
-                            <TextBlock Text="Dosya" Style="{StaticResource Text.Muted}" />
-                            <TextBlock Text="{Binding ScannedFiles, StringFormat={}{0:N0}}" Style="{StaticResource Counter.Value}" Margin="0,4,0,0" />
-                        </StackPanel>
-                    </Border>
-                    <Border Style="{StaticResource Border.Card}" Margin="0,0,8,0" Padding="12,10">
-                        <StackPanel>
-                            <TextBlock Text="Klasör" Style="{StaticResource Text.Muted}" />
-                            <TextBlock Text="{Binding ScannedFolders, StringFormat={}{0:N0}}" Style="{StaticResource Counter.Value}" Margin="0,4,0,0" />
-                        </StackPanel>
-                    </Border>
-                    <Border Style="{StaticResource Border.Card}" Margin="0,0,8,0" Padding="12,10">
-                        <StackPanel>
-                            <TextBlock Text="Boyut" Style="{StaticResource Text.Muted}" />
-                            <TextBlock Text="{Binding ScannedBytesDisplay}" Style="{StaticResource Counter.Value}" Margin="0,4,0,0" />
-                        </StackPanel>
-                    </Border>
-                    <Border Style="{StaticResource Border.Card}" Padding="12,10">
-                        <StackPanel>
-                            <Grid>
-                                <TextBlock Text="Hız" Style="{StaticResource Text.Muted}" />
-                                <TextBlock Text="{Binding ElapsedScanTime}" Style="{StaticResource Text.Mono}"
-                                           HorizontalAlignment="Right" Foreground="{DynamicResource Brush.Text.Secondary}" />
-                            </Grid>
-                            <TextBlock Text="{Binding ScanSpeed}" Style="{StaticResource Counter.Value}"
-                                       Margin="0,4,0,0" TextTrimming="CharacterEllipsis" />
-                        </StackPanel>
-                    </Border>
-                </UniformGrid>
-
-                <!-- Su an taranan yol -->
-                <Border Style="{StaticResource Border.Card}" Margin="0,8,0,0" Padding="12,8">
-                    <DockPanel LastChildFill="True">
-                        <TextBlock DockPanel.Dock="Left" Text="Şu an taranan: " Style="{StaticResource Text.Muted}" Margin="0,0,8,0" VerticalAlignment="Center" />
-                        <TextBlock Text="{Binding CurrentScanPath}" Style="{StaticResource Text.Mono}" VerticalAlignment="Center"
-                                   TextTrimming="CharacterEllipsis" ToolTip="{Binding CurrentScanPath}" />
-                    </DockPanel>
                 </Border>
-            </StackPanel>
-        </Border>
+                <Border Style="{StaticResource Border.Card}" Margin="0,0,8,0" Padding="12">
+                    <StackPanel>
+                        <TextBlock Text="Klasör" Style="{StaticResource Text.Muted}" />
+                        <TextBlock Text="{Binding ScannedFolders, StringFormat={}{0:N0}}" Style="{StaticResource Counter.Value}" Margin="0,4,0,0" />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource Border.Card}" Margin="0,0,8,0" Padding="12">
+                    <StackPanel>
+                        <TextBlock Text="Boyut" Style="{StaticResource Text.Muted}" />
+                        <TextBlock Text="{Binding ScannedBytesDisplay}" Style="{StaticResource Counter.Value}" Margin="0,4,0,0" />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource Border.Card}" Padding="12">
+                    <StackPanel>
+                        <TextBlock Text="Hız" Style="{StaticResource Text.Muted}" />
+                        <TextBlock Text="{Binding ScanSpeed}" Style="{StaticResource Text.Mono}" FontSize="13" FontWeight="SemiBold"
+                                   Margin="0,8,0,0" TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                </Border>
+            </UniformGrid>
 
-        <!-- Alt Panel: Canli Taranan Dosyalar Tablosu (Streaming Feed) -->
-        <Border Grid.Row="1" Style="{StaticResource Border.Card}" Margin="20,0,20,16" Padding="0"
-                Background="{DynamicResource Brush.Bg.Surface}">
-            <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="36" />
-                    <RowDefinition Height="*" />
-                </Grid.RowDefinitions>
-
-                <!-- Canli Akis Baslik Seridi -->
-                <Border Grid.Row="0" Background="{DynamicResource Brush.Bg.Elevated}"
-                        BorderBrush="{DynamicResource Brush.Border.Default}" BorderThickness="0,0,0,1" Padding="12,0">
+            <Border Style="{StaticResource Border.Card}" Margin="0,8,0,0" Padding="12">
+                <StackPanel>
                     <Grid>
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Text="{StaticResource Icon.File}" FontFamily="{DynamicResource Font.Icons}"
-                                       Foreground="{DynamicResource Brush.Accent}" Margin="0,0,8,0" VerticalAlignment="Center" />
-                            <TextBlock Text="Taranan Dosyalar (Canlı Akış)" Style="{StaticResource Text.Body}" FontWeight="SemiBold" VerticalAlignment="Center" />
-                            <TextBlock Text="— yeni dosyalar tarandıkça anında eklenir" Style="{StaticResource Text.Muted}" Margin="8,0,0,0" VerticalAlignment="Center" FontSize="12" />
-                        </StackPanel>
-
-                        <Border HorizontalAlignment="Right" Background="{DynamicResource Brush.Accent.Soft}" CornerRadius="10" Padding="8,2" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding DiscoveredFiles.Count, StringFormat={}{0:N0} dosya listeleniyor}"
-                                       Style="{StaticResource Text.Mono}" Foreground="{DynamicResource Brush.Accent}" FontSize="11" FontWeight="SemiBold" />
-                        </Border>
+                        <TextBlock Text="Şu an taranan" Style="{StaticResource Text.Muted}" />
+                        <TextBlock Text="{Binding ElapsedScanTime}" Style="{StaticResource Text.Mono}"
+                                   HorizontalAlignment="Right" Foreground="{DynamicResource Brush.Text.Secondary}" />
                     </Grid>
-                </Border>
+                    <TextBlock Text="{Binding CurrentScanPath}" Style="{StaticResource Text.Mono}" Margin="0,4,0,0"
+                               TextTrimming="CharacterEllipsis" ToolTip="{Binding CurrentScanPath}" />
+                </StackPanel>
+            </Border>
 
-                <!-- Canli Akis Tablosu -->
-                <DataGrid Grid.Row="1" x:Name="LiveGrid" ItemsSource="{Binding DiscoveredFiles}" AutomationProperties.Name="Taranan dosyalar canlı akışı"
-                          VirtualizingPanel.IsVirtualizing="True"
-                          VirtualizingPanel.VirtualizationMode="Recycling"
-                          VirtualizingPanel.ScrollUnit="Pixel"
-                          IsReadOnly="True"
-                          AutoGenerateColumns="False"
-                          BorderThickness="0"
-                          Background="Transparent"
-                          HeadersVisibility="Column"
-                          GridLinesVisibility="Horizontal">
-                    <DataGrid.RowStyle>
-                        <Style TargetType="DataGridRow" BasedOn="{StaticResource {x:Type DataGridRow}}">
-                            <Setter Property="Tag" Value="{Binding DataContext, RelativeSource={RelativeSource AncestorType=DataGrid}}" />
-                            <Setter Property="ContextMenu" Value="{StaticResource DiscoveredFileContextMenu}" />
-                            <Setter Property="ToolTip" Value="{Binding FullPath}" />
-                            <EventSetter Event="PreviewMouseRightButtonDown" Handler="Row_PreviewMouseRightButtonDown" />
-                        </Style>
-                    </DataGrid.RowStyle>
-                    <DataGrid.Columns>
-                        <DataGridTemplateColumn Header="Ad" SortMemberPath="Name" Width="2*" MinWidth="160">
-                            <DataGridTemplateColumn.CellTemplate>
-                                <DataTemplate>
-                                    <DockPanel>
-                                        <TextBlock DockPanel.Dock="Left" Text="{StaticResource Icon.File}" Style="{StaticResource Text.Icon}"
-                                                   FontSize="13" Margin="0,0,8,0" VerticalAlignment="Center" />
-                                        <TextBlock Text="{Binding Name}" Style="{StaticResource Grid.Text}" TextTrimming="CharacterEllipsis" />
-                                    </DockPanel>
-                                </DataTemplate>
-                            </DataGridTemplateColumn.CellTemplate>
-                        </DataGridTemplateColumn>
-
-                        <DataGridTextColumn Header="Konum" Binding="{Binding DirectoryPath}" Width="3*" MinWidth="180"
-                                            ElementStyle="{StaticResource Grid.Path}" />
-
-                        <DataGridTextColumn Header="Boyut" Binding="{Binding SizeDisplay}" SortMemberPath="Size" Width="100"
-                                            HeaderStyle="{StaticResource Grid.HeaderRight}" ElementStyle="{StaticResource Grid.Num}" />
-
-                        <DataGridTextColumn Header="Son değişiklik" Binding="{Binding LastModified, StringFormat={}{0:dd.MM.yyyy HH:mm:ss}}"
-                                            SortMemberPath="LastModified" Width="150"
-                                            HeaderStyle="{StaticResource Grid.HeaderRight}" ElementStyle="{StaticResource Grid.Num}" />
-                    </DataGrid.Columns>
-                </DataGrid>
-            </Grid>
-        </Border>
-    </Grid>
+            <Button Style="{StaticResource Button.Danger}" Command="{Binding StopScanCommand}" Margin="0,24,0,0"
+                    HorizontalAlignment="Center" MinWidth="140" AutomationProperties.Name="Taramayı durdur">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="{StaticResource Icon.Stop}" FontFamily="{DynamicResource Font.Icons}" FontSize="13" Margin="0,0,8,0" VerticalAlignment="Center" />
+                    <TextBlock Text="Durdur (Esc)" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+        </StackPanel>
+    </ScrollViewer>
 </UserControl>
