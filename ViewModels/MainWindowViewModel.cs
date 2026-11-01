@@ -514,6 +514,7 @@ public class MainWindowViewModel : INotifyPropertyChanged
 
         ThemeService.Current.ThemeChanged += (_, _) => OnPropertyChanged(nameof(IsDarkTheme));
         _scanEngine.ProgressChanged += OnScanProgress;
+        _scanEngine.ImmediateChildrenDiscovered += OnImmediateChildrenDiscovered;
 
         LoadLastScannedPath();
         LoadDrives();
@@ -568,6 +569,35 @@ public class MainWindowViewModel : INotifyPropertyChanged
 
     // ---------------------------------------------------------------- tarama
 
+    private DateTime _lastDirectChildSort = DateTime.MinValue;
+
+    private void OnImmediateChildrenDiscovered(IReadOnlyList<DirectChildInfo> discovered)
+    {
+        _ui.Post(() =>
+        {
+            if (RootItem == null || !IsScanning) return;
+            RootItem.Children.Clear();
+            foreach (var info in discovered)
+            {
+                var item = new FsItem
+                {
+                    Name = info.Name,
+                    FullPath = info.FullPath,
+                    IsDirectory = info.IsDirectory,
+                    Attributes = info.Attributes,
+                    LastModified = info.LastModified,
+                    Size = info.Size,
+                    AllocatedSize = info.AllocatedSize,
+                    FileCount = info.IsDirectory ? 0 : 1,
+                    FolderCount = 0,
+                    Parent = RootItem
+                };
+                RootItem.Children.Add(item);
+            }
+            RootItem.IsExpanded = true;
+        });
+    }
+
     private void OnScanProgress(ScanProgress p)
     {
         _ui.Post(() =>
@@ -587,6 +617,49 @@ public class MainWindowViewModel : INotifyPropertyChanged
                 RootItem.FileCount = p.FilesScanned;
                 RootItem.FolderCount = p.FoldersScanned;
                 RootItem.NotifySizesChanged();
+
+                if (p.DirectChildStats != null && RootItem.Children.Count > 0)
+                {
+                    foreach (var child in RootItem.Children)
+                    {
+                        if (p.DirectChildStats.TryGetValue(child.FullPath, out var stats))
+                        {
+                            if (child.IsDirectory)
+                            {
+                                child.Size = stats.bytes;
+                                child.AllocatedSize = stats.alloc;
+                                child.FileCount = stats.files;
+                                child.FolderCount = stats.folders;
+                            }
+                            if (p.BytesScanned > 0)
+                            {
+                                child.PercentOfParent = (double)child.Size / p.BytesScanned * 100.0;
+                            }
+                            child.NotifySizesChanged();
+                        }
+                        else if (p.BytesScanned > 0 && child.Size > 0)
+                        {
+                            child.PercentOfParent = (double)child.Size / p.BytesScanned * 100.0;
+                            child.NotifySizesChanged();
+                        }
+                    }
+
+                    // Sort direct children descending by Size (throttled every 800ms)
+                    var now = DateTime.UtcNow;
+                    if ((now - _lastDirectChildSort).TotalMilliseconds >= 800 && RootItem.Children.Count > 1)
+                    {
+                        _lastDirectChildSort = now;
+                        var sorted = RootItem.Children.OrderByDescending(c => c.Size).ToList();
+                        for (int i = 0; i < sorted.Count; i++)
+                        {
+                            int currentIndex = RootItem.Children.IndexOf(sorted[i]);
+                            if (currentIndex != i && currentIndex >= 0)
+                            {
+                                RootItem.Children.Move(currentIndex, i);
+                            }
+                        }
+                    }
+                }
             }
 
             RaiseSummary();
@@ -595,6 +668,7 @@ public class MainWindowViewModel : INotifyPropertyChanged
 
     private void ResetCounters()
     {
+        _lastDirectChildSort = DateTime.MinValue;
         CurrentScanPath = string.Empty;
         ScannedFiles = 0;
         ScannedFolders = 0;
@@ -627,6 +701,8 @@ public class MainWindowViewModel : INotifyPropertyChanged
             IsDirectory = true,
             LastModified = dirInfo.Exists ? dirInfo.LastWriteTime : DateTime.Now,
             Attributes = dirInfo.Exists ? dirInfo.Attributes : FileAttributes.Directory,
+            PercentOfParent = 100.0,
+            PercentOfTotal = 100.0,
             IsExpanded = true
         };
         RootCollection.Clear();

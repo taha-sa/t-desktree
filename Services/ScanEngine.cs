@@ -17,8 +17,10 @@ public class ScanEngine
     private long _foldersScanned;
     private long _bytesScanned;
     private DateTime _lastProgressReport = DateTime.MinValue;
+    private readonly ConcurrentDictionary<string, (long bytes, long alloc, long files, long folders)> _directChildStats = new(StringComparer.OrdinalIgnoreCase);
 
     public event Action<ScanProgress>? ProgressChanged;
+    public event Action<IReadOnlyList<DirectChildInfo>>? ImmediateChildrenDiscovered;
 
     public async Task<ScanResult> ScanAsync(string targetPath, CancellationToken cancellationToken)
     {
@@ -27,6 +29,7 @@ public class ScanEngine
         _foldersScanned = 0;
         _bytesScanned = 0;
         _lastProgressReport = DateTime.MinValue;
+        _directChildStats.Clear();
 
         var extStats = new ConcurrentDictionary<string, (long count, long size, long alloc)>(StringComparer.OrdinalIgnoreCase);
         var topFiles = new ConcurrentBag<TopFileItem>();
@@ -119,11 +122,20 @@ public class ScanEngine
         long[] ageBuckets,
         long[] ageCounts,
         DateTime now,
-        CancellationToken ct)
+        CancellationToken ct,
+        string? directChildPath = null)
     {
         if (ct.IsCancellationRequested) return;
 
         Interlocked.Increment(ref _foldersScanned);
+        if (directChildPath != null)
+        {
+            _directChildStats.AddOrUpdate(
+                directChildPath,
+                (0, 0, 0, 1),
+                (_, old) => (old.bytes, old.alloc, old.files, old.folders + 1));
+        }
+
         ReportProgressThrottled(folder.FullPath);
 
         string searchPattern = Path.Combine(folder.FullPath, "*");
@@ -198,6 +210,14 @@ public class ScanEngine
                     Interlocked.Increment(ref _filesScanned);
                     Interlocked.Add(ref _bytesScanned, fileSize);
 
+                    if (directChildPath != null)
+                    {
+                        _directChildStats.AddOrUpdate(
+                            directChildPath,
+                            (fileSize, allocated, 1, 0),
+                            (_, old) => (old.bytes + fileSize, old.alloc + allocated, old.files + 1, old.folders));
+                    }
+
                     // Track Extension
                     string ext = Path.GetExtension(name).ToLowerInvariant();
                     if (string.IsNullOrEmpty(ext)) ext = TreeMaintenance.NoExtensionLabel;
@@ -249,21 +269,46 @@ public class ScanEngine
         foreach (var sub in subFolders) folder.Children.Add(sub);
         foreach (var f in directFiles) folder.Children.Add(f);
 
+        // If this is the root folder, discover and broadcast immediate children
+        if (folder.Parent == null)
+        {
+            var discovered = new List<DirectChildInfo>(subFolders.Count + directFiles.Count);
+            foreach (var sub in subFolders)
+            {
+                _directChildStats[sub.FullPath] = (0, 0, 0, 0);
+                discovered.Add(new DirectChildInfo(sub.Name, sub.FullPath, true, sub.Attributes, sub.LastModified, 0, 0));
+            }
+            foreach (var f in directFiles)
+            {
+                _directChildStats[f.FullPath] = (f.Size, f.AllocatedSize, 1, 0);
+                discovered.Add(new DirectChildInfo(f.Name, f.FullPath, false, f.Attributes, f.LastModified, f.Size, f.AllocatedSize));
+            }
+            ImmediateChildrenDiscovered?.Invoke(discovered);
+            ReportProgress(folder.FullPath);
+        }
+
         // Recurse into subfolders
         foreach (var sub in subFolders)
         {
             if (ct.IsCancellationRequested) break;
 
             bool isReparse = (sub.Attributes & FileAttributes.ReparsePoint) != 0;
+            string? effectiveChildPath = directChildPath ?? (folder.Parent == null ? sub.FullPath : null);
             if (!isReparse)
             {
-                ScanNode(sub, clusterSize, extStats, topFiles, ageBuckets, ageCounts, now, ct);
+                ScanNode(sub, clusterSize, extStats, topFiles, ageBuckets, ageCounts, now, ct, effectiveChildPath);
             }
 
             folder.Size += sub.Size;
             folder.AllocatedSize += sub.AllocatedSize;
             folder.FileCount += sub.FileCount;
             folder.FolderCount += 1 + sub.FolderCount;
+
+            // When a direct child finishes scanning completely, ensure exact finalized stats
+            if (folder.Parent == null)
+            {
+                _directChildStats[sub.FullPath] = (sub.Size, sub.AllocatedSize, sub.FileCount, sub.FolderCount);
+            }
         }
     }
 
@@ -292,20 +337,30 @@ public class ScanEngine
         }
     }
 
+    private void ReportProgress(string currentPath)
+    {
+        _lastProgressReport = DateTime.UtcNow;
+        var statsSnapshot = _directChildStats.IsEmpty
+            ? null
+            : new Dictionary<string, (long bytes, long alloc, long files, long folders)>(_directChildStats, StringComparer.OrdinalIgnoreCase);
+
+        ProgressChanged?.Invoke(new ScanProgress
+        {
+            CurrentPath = currentPath,
+            FilesScanned = _filesScanned,
+            FoldersScanned = _foldersScanned,
+            BytesScanned = _bytesScanned,
+            Elapsed = _stopwatch.Elapsed,
+            DirectChildStats = statsSnapshot
+        });
+    }
+
     private void ReportProgressThrottled(string currentPath)
     {
         var now = DateTime.UtcNow;
         if ((now - _lastProgressReport).TotalMilliseconds >= 80)
         {
-            _lastProgressReport = now;
-            ProgressChanged?.Invoke(new ScanProgress
-            {
-                CurrentPath = currentPath,
-                FilesScanned = _filesScanned,
-                FoldersScanned = _foldersScanned,
-                BytesScanned = _bytesScanned,
-                Elapsed = _stopwatch.Elapsed
-            });
+            ReportProgress(currentPath);
         }
     }
 
