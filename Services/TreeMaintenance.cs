@@ -68,18 +68,50 @@ public static class TreeMaintenance
         }
     }
 
-    /// <summary>Cocuklari boyuta gore azalan siralar (Move ile; koleksiyonu sifirlamaz).</summary>
-    public static void SortChildrenBySize(FsItem node)
+    /// <summary>
+    /// Çocukları boyuta göre azalan sıralar (Move ile; koleksiyonu sıfırlamaz).
+    /// Kök dizinde (node.Parent == null) ana klasörler önce (büyükten küçüğe), ardından ana dizindeki dosyalar (büyükten küçüğe).
+    /// Alt klasörlerde (node.Parent != null) dosya veya klasörler karma olarak büyükten küçüğe sıralanır.
+    /// </summary>
+    public static void SortChildren(FsItem node)
     {
-        var desired = node.Children.OrderByDescending(c => c.Size).ToList();
-        for (int i = 0; i < desired.Count; i++)
+        if (node.Children.Count <= 1) return;
+        lock (node.SyncLock)
         {
-            if (!ReferenceEquals(node.Children[i], desired[i]))
+            bool isRoot = node.Parent == null;
+            List<FsItem> desired;
+            if (isRoot)
             {
-                node.Children.Move(node.Children.IndexOf(desired[i]), i);
+                desired = node.Children
+                    .OrderByDescending(c => c.IsDirectory)
+                    .ThenByDescending(c => c.Size)
+                    .ThenBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+            else
+            {
+                desired = node.Children
+                    .OrderByDescending(c => c.Size)
+                    .ThenBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+
+            for (int i = 0; i < desired.Count; i++)
+            {
+                if (!ReferenceEquals(node.Children[i], desired[i]))
+                {
+                    int oldIndex = node.Children.IndexOf(desired[i]);
+                    if (oldIndex >= 0 && oldIndex != i)
+                    {
+                        node.Children.Move(oldIndex, i);
+                    }
+                }
             }
         }
     }
+
+    /// <summary>Geriye dönük uyumluluk: SortChildren metodunu çağırır.</summary>
+    public static void SortChildrenBySize(FsItem node) => SortChildren(node);
 
     /// <summary>item'dan koke kadar her dugumun cocuk sirasini yeniler.</summary>
     public static void ResortChain(FsItem? item)

@@ -49,10 +49,17 @@ public class ScanEngine
             IsExpanded = true
         };
 
-        await Task.Run(() =>
+        try
         {
-            ScanNode(root, clusterSize, extStats, topFiles, ageBuckets, ageCounts, now, cancellationToken);
-        }, cancellationToken);
+            await Task.Run(() =>
+            {
+                ScanNode(root, clusterSize, extStats, topFiles, ageBuckets, ageCounts, now, cancellationToken);
+            }, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            // İptal edilse bile mevcut taranan kısmı sıralayıp yüzdeleri hesapla
+        }
 
         _stopwatch.Stop();
 
@@ -179,6 +186,9 @@ public class ScanEngine
                     ReportProgressThrottled(childFile.FullPath);
                 }
             }
+
+            folder.NotifySizesChanged();
+            TreeMaintenance.SortChildren(folder);
         }
 
         // Recurse into subfolders
@@ -198,9 +208,17 @@ public class ScanEngine
             folder.FolderCount += 1 + sub.FolderCount;
 
             sub.NotifySizesChanged();
+            folder.NotifySizesChanged();
+
+            TreeMaintenance.SortChildren(folder);
+            if (folder.Parent != null)
+            {
+                TreeMaintenance.SortChildren(folder.Parent);
+            }
         }
 
         folder.NotifySizesChanged();
+        TreeMaintenance.SortChildren(folder);
     }
 
     private void CalculatePercentagesAndSort(FsItem item, long rootTotalSize)
@@ -217,18 +235,7 @@ public class ScanEngine
 
         if (item.Children.Count > 0)
         {
-            lock (item.SyncLock)
-            {
-                var sorted = item.Children.OrderByDescending(c => c.Size).ToList();
-                for (int i = 0; i < sorted.Count; i++)
-                {
-                    int oldIndex = item.Children.IndexOf(sorted[i]);
-                    if (oldIndex != i && oldIndex >= 0)
-                    {
-                        item.Children.Move(oldIndex, i);
-                    }
-                }
-            }
+            TreeMaintenance.SortChildren(item);
 
             foreach (var child in item.Children)
             {
