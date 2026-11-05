@@ -156,14 +156,11 @@ public class ScanEngine
                     }
                 }
 
-                if ((_filesScanned & 63) == 0)
+                if ((_filesScanned & 255) == 0)
                 {
                     ReportProgressThrottled(childFile.FullPath);
                 }
             }
-
-            folder.NotifySizesChanged();
-            TreeMaintenance.SortChildren(folder);
         }
 
         // Recurse into subfolders
@@ -181,19 +178,7 @@ public class ScanEngine
             folder.AllocatedSize += sub.AllocatedSize;
             folder.FileCount += sub.FileCount;
             folder.FolderCount += 1 + sub.FolderCount;
-
-            sub.NotifySizesChanged();
-            folder.NotifySizesChanged();
-
-            TreeMaintenance.SortChildren(folder);
-            if (folder.Parent != null)
-            {
-                TreeMaintenance.SortChildren(folder.Parent);
-            }
         }
-
-        folder.NotifySizesChanged();
-        TreeMaintenance.SortChildren(folder);
     }
 
     private void CalculatePercentagesAndSort(FsItem item, long rootTotalSize)

@@ -37,6 +37,7 @@ public enum ActiveView
 public class MainWindowViewModel : INotifyPropertyChanged
 {
     private readonly ScanEngine _scanEngine = new();
+    private readonly MftScanEngine _mftScanEngine = new();
     private readonly IDialogService _dialogs;
     private readonly IUiDispatcher _ui;
     private CancellationTokenSource? _cts;
@@ -550,6 +551,7 @@ public class MainWindowViewModel : INotifyPropertyChanged
 
         ThemeService.Current.ThemeChanged += (_, _) => OnPropertyChanged(nameof(IsDarkTheme));
         _scanEngine.ProgressChanged += OnScanProgress;
+        _mftScanEngine.ProgressChanged += OnScanProgress;
 
         LoadLastScannedPath();
         LoadDrives();
@@ -697,7 +699,39 @@ public class MainWindowViewModel : INotifyPropertyChanged
 
         try
         {
-            var result = await _scanEngine.ScanAsync(scanPath, _cts.Token, RootItem);
+            ScanResult? result = null;
+            bool usedMft = false;
+
+            if (MftScanEngine.IsSupported(scanPath))
+            {
+                StatusText = $"MFT analizi yapılıyor (Ultra Hızlı): {scanPath}...";
+                try
+                {
+                    result = await _mftScanEngine.TryScanAsync(scanPath, _cts.Token, RootItem);
+                    if (result != null) usedMft = true;
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch
+                {
+                    result = null;
+                }
+            }
+
+            if (result == null && !_cts.IsCancellationRequested)
+            {
+                StatusText = $"Taranıyor: {scanPath}...";
+                result = await _scanEngine.ScanAsync(scanPath, _cts.Token, RootItem);
+            }
+
+            if (result == null)
+            {
+                SetError("Tarama sonuç üretmedi.");
+                ViewState = ViewState.Empty;
+                return;
+            }
 
             ScannedFiles = result.TotalFiles;
             ScannedFolders = result.TotalFolders;
@@ -719,7 +753,8 @@ public class MainWindowViewModel : INotifyPropertyChanged
             }
             else
             {
-                StatusText = $"Tarama tamamlandı: {result.Elapsed.TotalSeconds:F2} sn ({result.TotalFiles:N0} dosya, {result.TotalFolders:N0} klasör, {SizeFormatter.FormatBytes(result.TotalSize, CurrentUnitMode)})";
+                string engineTag = usedMft ? " (MFT Ultra Hızlı)" : string.Empty;
+                StatusText = $"Tarama tamamlandı{engineTag}: {result.Elapsed.TotalSeconds:F2} sn ({result.TotalFiles:N0} dosya, {result.TotalFolders:N0} klasör, {SizeFormatter.FormatBytes(result.TotalSize, CurrentUnitMode)})";
                 LastScannedPath = scanPath;
                 SaveLastScannedPath(scanPath);
             }

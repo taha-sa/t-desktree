@@ -258,29 +258,8 @@ public class FsItem : INotifyPropertyChanged
                     NativeFileSystem.FindClose(hFind);
                 }
 
-                bool isRoot = Parent == null;
-                if (isRoot)
-                {
-                    // Ana klasörler önce (büyükten küçüğe), ardından ana dizindeki dosyalar (büyükten küçüğe)
-                    var sortedFolders = subFolders
-                        .OrderByDescending(f => f.Size)
-                        .ThenBy(f => f.Name, StringComparer.OrdinalIgnoreCase);
-                    var sortedFiles = directFiles
-                        .OrderByDescending(f => f.Size)
-                        .ThenBy(f => f.Name, StringComparer.OrdinalIgnoreCase);
-
-                    foreach (var sub in sortedFolders) Children.Add(sub);
-                    foreach (var f in sortedFiles) Children.Add(f);
-                }
-                else
-                {
-                    // Klasörün içindeki dosya veya klasörler ayrıca karma (büyükten küçüğe)
-                    var allSorted = subFolders.Concat(directFiles)
-                        .OrderByDescending(x => x.Size)
-                        .ThenBy(x => x.Name, StringComparer.OrdinalIgnoreCase);
-
-                    foreach (var item in allSorted) Children.Add(item);
-                }
+                foreach (var sub in subFolders) Children.Add(sub);
+                foreach (var f in directFiles) Children.Add(f);
             }
             catch
             {

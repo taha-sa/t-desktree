@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Runtime.InteropServices;
 
@@ -6,6 +7,7 @@ namespace AmberTree.Services;
 
 public static class NativeFileSystem
 {
+    private static readonly ConcurrentDictionary<string, uint> _clusterSizeCache = new(StringComparer.OrdinalIgnoreCase);
     private const int FindExInfoBasic = 1;
     private const int FindExSearchNameMatch = 0;
     private const int FIND_FIRST_EX_LARGE_FETCH = 2;
@@ -108,11 +110,15 @@ public static class NativeFileSystem
             var root = Path.GetPathRoot(rootPath);
             if (string.IsNullOrWhiteSpace(root)) return 4096;
 
-            if (GetDiskFreeSpace(root, out uint sectors, out uint bytes, out _, out _))
+            return _clusterSizeCache.GetOrAdd(root, r =>
             {
-                uint clusterSize = sectors * bytes;
-                return clusterSize > 0 ? clusterSize : 4096;
-            }
+                if (GetDiskFreeSpace(r, out uint sectors, out uint bytes, out _, out _))
+                {
+                    uint clusterSize = sectors * bytes;
+                    return clusterSize > 0 ? clusterSize : 4096;
+                }
+                return 4096;
+            });
         }
         catch { }
         return 4096;
