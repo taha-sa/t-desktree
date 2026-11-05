@@ -1058,7 +1058,7 @@ public class MainWindowViewModel : INotifyPropertyChanged
             "json" => "JSON dosyası (*.json)|*.json",
             _ => "Metin raporu (*.txt)|*.txt"
         };
-        string? file = _dialogs.PickSaveFile(filter, $"AmberTree_Rapor_{stamp}.{kind}");
+        string? file = _dialogs.PickSaveFile(filter, $"T-DeskTree_Rapor_{stamp}.{kind}");
         if (string.IsNullOrEmpty(file)) return;
 
         try

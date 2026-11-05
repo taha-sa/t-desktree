@@ -24,7 +24,7 @@ public partial class App : Application
     private static async Task RunDiagnosticsAndExitAsync()
     {
         Console.WriteLine("==================================================");
-        Console.WriteLine(" AmberTree Self-Diagnostic & Verification Suite");
+        Console.WriteLine(" T-DeskTree Self-Diagnostic & Verification Suite");
         Console.WriteLine("==================================================");
 
         try
@@ -98,7 +98,7 @@ public partial class App : Application
             Console.WriteLine("PASSED");
 
             Console.WriteLine("==================================================");
-            Console.WriteLine(" ALL AMBERTREE TESTS PASSED SUCCESSFULLY! (5/5)");
+            Console.WriteLine(" ALL T-DESKTREE TESTS PASSED SUCCESSFULLY! (5/5)");
             Console.WriteLine("==================================================");
 
             Environment.Exit(0);
