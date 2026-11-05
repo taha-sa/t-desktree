@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Security.Principal;
 using System.Windows;
 using AmberTree.Models;
 
@@ -113,6 +114,43 @@ public static class ShellHelper
     }
 
     public static bool PermanentDelete(string path) => TryPermanentDelete(path, out _);
+
+    public static bool IsRunningAsAdministrator()
+    {
+        try
+        {
+            using var identity = WindowsIdentity.GetCurrent();
+            var principal = new WindowsPrincipal(identity);
+            return principal.IsInRole(WindowsBuiltInRole.Administrator);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public static bool RestartAsAdministrator()
+    {
+        try
+        {
+            var exePath = Environment.ProcessPath ?? Process.GetCurrentProcess().MainModule?.FileName;
+            if (string.IsNullOrEmpty(exePath)) return false;
+
+            var psi = new ProcessStartInfo
+            {
+                FileName = exePath,
+                UseShellExecute = true,
+                Verb = "runas"
+            };
+            Process.Start(psi);
+            Application.Current.Shutdown();
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
 
     public static List<DriveInfoModel> GetSystemDrives()
     {

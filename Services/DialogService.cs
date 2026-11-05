@@ -15,19 +15,30 @@ public interface IDialogService
 
     /// <summary>Kaydetme yeri seçtirir (filter: "CSV (*.csv)|*.csv" biçiminde); iptalde null.</summary>
     string? PickSaveFile(string filter, string defaultName);
+
+    /// <summary>Hakkında kartını gösterir.</summary>
+    void ShowAbout();
 }
 
 public class DialogService : IDialogService
 {
     public bool Confirm(string title, string message, bool isDanger = false)
     {
-        var result = MessageBox.Show(
-            message,
-            title,
-            MessageBoxButton.YesNo,
-            isDanger ? MessageBoxImage.Warning : MessageBoxImage.Question,
-            MessageBoxResult.No);
-        return result == MessageBoxResult.Yes;
+        try
+        {
+            var dlg = new Views.ConfirmDialog(title, message, isDanger);
+            return dlg.ShowDialog() == true;
+        }
+        catch
+        {
+            var result = MessageBox.Show(
+                message,
+                title,
+                MessageBoxButton.YesNo,
+                isDanger ? MessageBoxImage.Warning : MessageBoxImage.Question,
+                MessageBoxResult.No);
+            return result == MessageBoxResult.Yes;
+        }
     }
 
     public string? PickFolder(string? initialDirectory = null)
@@ -51,5 +62,15 @@ public class DialogService : IDialogService
             DefaultDirectory = Environment.GetFolderPath(Environment.SpecialFolder.Desktop)
         };
         return sfd.ShowDialog() == true ? sfd.FileName : null;
+    }
+
+    public void ShowAbout()
+    {
+        try
+        {
+            var dlg = new Views.AboutDialog();
+            dlg.ShowDialog();
+        }
+        catch { }
     }
 }

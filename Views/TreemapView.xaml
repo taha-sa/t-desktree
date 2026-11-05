@@ -3,6 +3,19 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:controls="clr-namespace:AmberTree.Controls"
              Focusable="False">
+    <UserControl.Triggers>
+        <EventTrigger RoutedEvent="Loaded">
+            <BeginStoryboard>
+                <Storyboard>
+                    <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0.3" To="1.0" Duration="0:0:0.18">
+                        <DoubleAnimation.EasingFunction>
+                            <QuadraticEase EasingMode="EaseOut" />
+                        </DoubleAnimation.EasingFunction>
+                    </DoubleAnimation>
+                </Storyboard>
+            </BeginStoryboard>
+        </EventTrigger>
+    </UserControl.Triggers>
     <UserControl.InputBindings>
         <KeyBinding Key="Back" Command="{Binding TreemapUpCommand}" />
     </UserControl.InputBindings>
@@ -20,8 +33,8 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
             <Button Style="{StaticResource Button.Icon}" Content="{StaticResource Icon.Up}"
-                    Command="{Binding TreemapUpCommand}" ToolTip="Üst klasör (Backspace)"
-                    AutomationProperties.Name="Üst klasöre çık" Margin="0,0,8,0" />
+                    Command="{Binding TreemapUpCommand}" ToolTip="Ãœst klasÃ¶r (Backspace)"
+                    AutomationProperties.Name="Ãœst klasÃ¶re Ã§Ä±k" Margin="0,0,8,0" />
             <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled"
                           x:Name="CrumbScroll" VerticalAlignment="Center">
                 <ItemsControl ItemsSource="{Binding TreemapBreadcrumb}" Focusable="False">
@@ -66,7 +79,7 @@
             </Grid.ColumnDefinitions>
             <TextBlock Style="{StaticResource Text.Mono}" Foreground="{DynamicResource Brush.Text.Secondary}"
                        TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="0,0,16,0">
-                <Run Text="{Binding SelectedItem.FullPath, Mode=OneWay, FallbackValue='Bir kareye tıklayın; çift tık klasöre girer.'}" />
+                <Run Text="{Binding SelectedItem.FullPath, Mode=OneWay, FallbackValue='Bir kareye tÄ±klayÄ±n; Ã§ift tÄ±k klasÃ¶re girer.'}" />
             </TextBlock>
             <WrapPanel x:Name="Legend" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center"
                        MaxWidth="560" />

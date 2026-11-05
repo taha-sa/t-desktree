@@ -28,6 +28,49 @@
                 <Setter Property="Text" Value="{StaticResource Icon.Folder}" />
                 <Setter Property="Foreground" Value="{DynamicResource Brush.Warning}" />
             </DataTrigger>
+            <!-- Hiyerarsik Derinlik Renkleri: Kok, C:\ alti, alt klasorler ve onlarin da alti -->
+            <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding IsDirectory}" Value="True" />
+                    <Condition Binding="{Binding DepthColorLevel}" Value="0" />
+                </MultiDataTrigger.Conditions>
+                <Setter Property="Foreground" Value="{DynamicResource Brush.Warning}" />
+            </MultiDataTrigger>
+            <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding IsDirectory}" Value="True" />
+                    <Condition Binding="{Binding DepthColorLevel}" Value="1" />
+                </MultiDataTrigger.Conditions>
+                <Setter Property="Foreground" Value="{DynamicResource Brush.Cat.Image}" />
+            </MultiDataTrigger>
+            <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding IsDirectory}" Value="True" />
+                    <Condition Binding="{Binding DepthColorLevel}" Value="2" />
+                </MultiDataTrigger.Conditions>
+                <Setter Property="Foreground" Value="{DynamicResource Brush.Accent}" />
+            </MultiDataTrigger>
+            <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding IsDirectory}" Value="True" />
+                    <Condition Binding="{Binding DepthColorLevel}" Value="3" />
+                </MultiDataTrigger.Conditions>
+                <Setter Property="Foreground" Value="{DynamicResource Brush.Cat.Video}" />
+            </MultiDataTrigger>
+            <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding IsDirectory}" Value="True" />
+                    <Condition Binding="{Binding DepthColorLevel}" Value="4" />
+                </MultiDataTrigger.Conditions>
+                <Setter Property="Foreground" Value="{DynamicResource Brush.Cat.Audio}" />
+            </MultiDataTrigger>
+            <MultiDataTrigger>
+                <MultiDataTrigger.Conditions>
+                    <Condition Binding="{Binding IsDirectory}" Value="True" />
+                    <Condition Binding="{Binding DepthColorLevel}" Value="5" />
+                </MultiDataTrigger.Conditions>
+                <Setter Property="Foreground" Value="{DynamicResource Brush.Cat.Code}" />
+            </MultiDataTrigger>
             <MultiDataTrigger>
                 <MultiDataTrigger.Conditions>
                     <Condition Binding="{Binding IsDirectory}" Value="True" />
@@ -35,6 +78,21 @@
                 </MultiDataTrigger.Conditions>
                 <Setter Property="Text" Value="{StaticResource Icon.FolderOpen}" />
             </MultiDataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <!-- Dosya/Klasör Adı Stili: Klasörler kalın ve belirgin, dosyalar ikincil tonda -->
+    <Style x:Key="Fs.Name" TargetType="TextBlock" BasedOn="{StaticResource Text.Body}">
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        <Style.Triggers>
+            <DataTrigger Binding="{Binding IsDirectory}" Value="True">
+                <Setter Property="FontWeight" Value="SemiBold" />
+                <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Primary}" />
+            </DataTrigger>
+            <DataTrigger Binding="{Binding IsDirectory}" Value="False">
+                <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Secondary}" />
+            </DataTrigger>
         </Style.Triggers>
     </Style>
 
@@ -83,10 +141,10 @@
 
     <!-- Sag tik menusu: agac ve treemap (parametre = tiklanan FsItem; Tag = ViewModel) -->
     <ContextMenu x:Key="ItemContextMenu">
-        <MenuItem Header="Explorer'da aç" Icon="{StaticResource Icon.Explorer}"
+        <MenuItem Header="Explorer'da aÃ§" Icon="{StaticResource Icon.Explorer}"
                   Command="{Binding PlacementTarget.Tag.OpenInExplorerCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                   CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
-        <MenuItem Header="Terminalde aç" Icon="{StaticResource Icon.Terminal}"
+        <MenuItem Header="Terminalde aÃ§" Icon="{StaticResource Icon.Terminal}"
                   Command="{Binding PlacementTarget.Tag.OpenTerminalCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                   CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
         <MenuItem Header="Yolu kopyala" Icon="{StaticResource Icon.Copy}"
@@ -98,30 +156,30 @@
                   Command="{Binding PlacementTarget.Tag.RescanFolderCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                   CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
         <Separator />
-        <MenuItem Header="Geri dönüşüm kutusuna taşı" Icon="{StaticResource Icon.Recycle}" InputGestureText="Del"
+        <MenuItem Header="Geri dÃ¶nÃ¼ÅŸÃ¼m kutusuna taÅŸÄ±" Icon="{StaticResource Icon.Recycle}" InputGestureText="Del"
                   Command="{Binding PlacementTarget.Tag.RecycleCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                   CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
-        <MenuItem Header="Kalıcı sil" Icon="{StaticResource Icon.Delete}" InputGestureText="Shift+Del" Style="{StaticResource MenuItem.Danger}"
+        <MenuItem Header="KalÄ±cÄ± sil" Icon="{StaticResource Icon.Delete}" InputGestureText="Shift+Del" Style="{StaticResource MenuItem.Danger}"
                   Command="{Binding PlacementTarget.Tag.DeletePermanentCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                   CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
     </ContextMenu>
 
     <!-- En buyuk dosyalar: ayni menu, "Yeniden tara" yok -->
     <ContextMenu x:Key="TopFileContextMenu">
-        <MenuItem Header="Explorer'da aç" Icon="{StaticResource Icon.Explorer}"
+        <MenuItem Header="Explorer'da aÃ§" Icon="{StaticResource Icon.Explorer}"
                   Command="{Binding PlacementTarget.Tag.OpenInExplorerCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                   CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
-        <MenuItem Header="Terminalde aç" Icon="{StaticResource Icon.Terminal}"
+        <MenuItem Header="Terminalde aÃ§" Icon="{StaticResource Icon.Terminal}"
                   Command="{Binding PlacementTarget.Tag.OpenTerminalCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                   CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
         <MenuItem Header="Yolu kopyala" Icon="{StaticResource Icon.Copy}"
                   Command="{Binding PlacementTarget.Tag.CopyPathCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                   CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
         <Separator />
-        <MenuItem Header="Geri dönüşüm kutusuna taşı" Icon="{StaticResource Icon.Recycle}" InputGestureText="Del"
+        <MenuItem Header="Geri dÃ¶nÃ¼ÅŸÃ¼m kutusuna taÅŸÄ±" Icon="{StaticResource Icon.Recycle}" InputGestureText="Del"
                   Command="{Binding PlacementTarget.Tag.RecycleCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                   CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
-        <MenuItem Header="Kalıcı sil" Icon="{StaticResource Icon.Delete}" InputGestureText="Shift+Del" Style="{StaticResource MenuItem.Danger}"
+        <MenuItem Header="KalÄ±cÄ± sil" Icon="{StaticResource Icon.Delete}" InputGestureText="Shift+Del" Style="{StaticResource MenuItem.Danger}"
                   Command="{Binding PlacementTarget.Tag.DeletePermanentCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                   CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
     </ContextMenu>

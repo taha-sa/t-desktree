@@ -364,6 +364,8 @@ public class MainWindowViewModel : INotifyPropertyChanged
 
     // ---------------------------------------------------------------- arama
 
+    private CancellationTokenSource? _searchCts;
+
     public string SearchText
     {
         get => _searchText;
@@ -374,9 +376,37 @@ public class MainWindowViewModel : INotifyPropertyChanged
                 _searchText = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(IsSearchActive));
-                ApplyFilter(value);
+                ScheduleFilter(value);
             }
         }
+    }
+
+    private void ScheduleFilter(string query)
+    {
+        _searchCts?.Cancel();
+        _searchCts?.Dispose();
+        _searchCts = new CancellationTokenSource();
+        var token = _searchCts.Token;
+
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            ApplyFilter(string.Empty);
+            return;
+        }
+
+        Task.Delay(250, token).ContinueWith(t =>
+        {
+            if (!t.IsCanceled && !token.IsCancellationRequested)
+            {
+                _ui.Post(() =>
+                {
+                    if (!token.IsCancellationRequested)
+                    {
+                        ApplyFilter(query);
+                    }
+                });
+            }
+        }, TaskScheduler.Default);
     }
 
     public bool IsSearchActive => !string.IsNullOrWhiteSpace(SearchText);
@@ -445,6 +475,9 @@ public class MainWindowViewModel : INotifyPropertyChanged
     public ICommand CopyPathCommand { get; }
 
     public ICommand ToggleThemeCommand { get; }
+    public ICommand RestartAsAdminCommand { get; }
+    public ICommand OpenAboutCommand { get; }
+    public bool IsRunningAsAdmin { get; } = ShellHelper.IsRunningAsAdministrator();
     public ICommand TreemapUpCommand { get; }
     /// <summary>Parametre: FsItem (klasor; dosya gelirse ust klasore gider).</summary>
     public ICommand TreemapNavigateCommand { get; }
@@ -501,6 +534,9 @@ public class MainWindowViewModel : INotifyPropertyChanged
             OnPropertyChanged(nameof(IsDarkTheme));
         });
 
+        RestartAsAdminCommand = new RelayCommand(_ => ShellHelper.RestartAsAdministrator());
+        OpenAboutCommand = new RelayCommand(_ => _dialogs.ShowAbout());
+
         TreemapUpCommand = new RelayCommand(_ =>
         {
             if (TreemapRoot?.Parent != null) TreemapRoot = TreemapRoot.Parent;
@@ -542,12 +578,32 @@ public class MainWindowViewModel : INotifyPropertyChanged
             case ActiveView v:
                 ActiveView = v;
                 break;
-            case int i when i >= 1 && i <= 5:
-                ActiveView = (ActiveView)(i - 1);
+            case int i:
+                ActiveView = i switch
+                {
+                    1 => ActiveView.Tree,
+                    2 => ActiveView.Treemap,
+                    3 => ActiveView.TopFiles,
+                    4 => ActiveView.TopFiles,
+                    _ => ActiveView.Tree
+                };
                 break;
             case string s:
-                if (int.TryParse(s, out var n) && n >= 1 && n <= 5) ActiveView = (ActiveView)(n - 1);
-                else if (Enum.TryParse<ActiveView>(s, true, out var parsed)) ActiveView = parsed;
+                if (int.TryParse(s, out var n))
+                {
+                    ActiveView = n switch
+                    {
+                        1 => ActiveView.Tree,
+                        2 => ActiveView.Treemap,
+                        3 => ActiveView.TopFiles,
+                        4 => ActiveView.TopFiles,
+                        _ => ActiveView.Tree
+                    };
+                }
+                else if (Enum.TryParse<ActiveView>(s, true, out var parsed))
+                {
+                    ActiveView = parsed;
+                }
                 break;
         }
     }

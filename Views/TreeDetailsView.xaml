@@ -4,6 +4,19 @@
              xmlns:views="clr-namespace:AmberTree.Views"
              xmlns:models="clr-namespace:AmberTree.Models"
              Focusable="False">
+    <UserControl.Triggers>
+        <EventTrigger RoutedEvent="Loaded">
+            <BeginStoryboard>
+                <Storyboard>
+                    <DoubleAnimation Storyboard.TargetProperty="Opacity" From="0.3" To="1.0" Duration="0:0:0.18">
+                        <DoubleAnimation.EasingFunction>
+                            <QuadraticEase EasingMode="EaseOut" />
+                        </DoubleAnimation.EasingFunction>
+                    </DoubleAnimation>
+                </Storyboard>
+            </BeginStoryboard>
+        </EventTrigger>
+    </UserControl.Triggers>
     <UserControl.Resources>
         <views:TreeColumns x:Key="Cols" />
 
@@ -56,14 +69,14 @@
                     <ColumnDefinition Width="{Binding Attr, Source={StaticResource Cols}}" />
                 </Grid.ColumnDefinitions>
 
-                <!-- Ad: girinti + genisletme oku + kategori renkli ikon + ad -->
+                <!-- Ad: girinti + genisletme oku + hiyerarsik renkli klasor ikonu + ad -->
                 <DockPanel Margin="{Binding Converter={StaticResource Conv.Depth}}" LastChildFill="True">
                     <ToggleButton DockPanel.Dock="Left" Width="20" Height="20" Focusable="False" ClickMode="Press" VerticalAlignment="Center"
                                   IsChecked="{Binding IsExpanded, Mode=TwoWay}"
                                   Visibility="{Binding IsDirectory, Converter={StaticResource Conv.BoolToVis}}"
                                   Style="{StaticResource TreeView.Expander}" />
                     <TextBlock DockPanel.Dock="Left" Style="{StaticResource Fs.Icon}" Width="22" Margin="2,0,6,0" VerticalAlignment="Center" />
-                    <TextBlock Text="{Binding Name}" Style="{StaticResource Text.Body}" VerticalAlignment="Center"
+                    <TextBlock Text="{Binding Name}" Style="{StaticResource Fs.Name}" VerticalAlignment="Center"
                                TextTrimming="CharacterEllipsis" />
                 </DockPanel>
 
@@ -124,12 +137,12 @@
                 </Grid.ColumnDefinitions>
                 <TextBlock Text="Ad" Style="{StaticResource Head.Text}" Margin="50,0,8,0" />
                 <TextBlock Grid.Column="1" Text="Boyut" Style="{StaticResource Head.Right}" />
-                <TextBlock Grid.Column="2" Text="Diskte" Style="{StaticResource Head.Right}" ToolTip="Kümeye yuvarlanmış, diskte kapladığı alan" />
-                <TextBlock Grid.Column="3" Text="Üst %'si" Style="{StaticResource Head.Text}" />
+                <TextBlock Grid.Column="2" Text="Diskte" Style="{StaticResource Head.Right}" ToolTip="KÃ¼meye yuvarlanmÄ±ÅŸ, diskte kapladÄ±ÄŸÄ± alan" />
+                <TextBlock Grid.Column="3" Text="Ãœst %'si" Style="{StaticResource Head.Text}" />
                 <TextBlock Grid.Column="4" Text="Dosya" Style="{StaticResource Head.Right}" />
-                <TextBlock Grid.Column="5" Text="Klasör" Style="{StaticResource Head.Right}" />
-                <TextBlock Grid.Column="6" Text="Son değişiklik" Style="{StaticResource Head.Right}" />
-                <TextBlock Grid.Column="7" Text="Öznitelik" Style="{StaticResource Head.Right}" />
+                <TextBlock Grid.Column="5" Text="KlasÃ¶r" Style="{StaticResource Head.Right}" />
+                <TextBlock Grid.Column="6" Text="Son deÄŸiÅŸiklik" Style="{StaticResource Head.Right}" />
+                <TextBlock Grid.Column="7" Text="Ã–znitelik" Style="{StaticResource Head.Right}" />
 
                 <Thumb Grid.Column="1" Tag="Size" Style="{StaticResource Splitter.Handle}" DragDelta="Splitter_DragDelta" />
                 <Thumb Grid.Column="2" Tag="Allocated" Style="{StaticResource Splitter.Handle}" DragDelta="Splitter_DragDelta" />
@@ -167,11 +180,11 @@
                 <TextBlock Text="{StaticResource Icon.Search}" Style="{StaticResource Text.Icon}" FontSize="32"
                            Foreground="{DynamicResource Brush.Text.Muted}" HorizontalAlignment="Center" />
                 <TextBlock Style="{StaticResource Text.Subtitle}" Margin="0,16,0,0" HorizontalAlignment="Center">
-                    <Run Text="“" /><Run Text="{Binding SearchText, Mode=OneWay}" /><Run Text="” için sonuç yok" />
+                    <Run Text="â€œ" /><Run Text="{Binding SearchText, Mode=OneWay}" /><Run Text="â€ iÃ§in sonuÃ§ yok" />
                 </TextBlock>
-                <TextBlock Text="Farklı bir ad deneyin ya da aramayı temizleyin." Style="{StaticResource Text.Secondary}"
+                <TextBlock Text="FarklÄ± bir ad deneyin ya da aramayÄ± temizleyin." Style="{StaticResource Text.Secondary}"
                            Margin="0,4,0,16" HorizontalAlignment="Center" />
-                <Button Content="Aramayı temizle" Command="{Binding ClearSearchCommand}" HorizontalAlignment="Center" />
+                <Button Content="AramayÄ± temizle" Command="{Binding ClearSearchCommand}" HorizontalAlignment="Center" />
             </StackPanel>
         </Border>
     </Grid>

@@ -22,8 +22,6 @@
         <KeyBinding Key="D1" Modifiers="Ctrl" Command="{Binding NavigateCommand}" CommandParameter="1" />
         <KeyBinding Key="D2" Modifiers="Ctrl" Command="{Binding NavigateCommand}" CommandParameter="2" />
         <KeyBinding Key="D3" Modifiers="Ctrl" Command="{Binding NavigateCommand}" CommandParameter="3" />
-        <KeyBinding Key="D4" Modifiers="Ctrl" Command="{Binding NavigateCommand}" CommandParameter="4" />
-        <KeyBinding Key="D5" Modifiers="Ctrl" Command="{Binding NavigateCommand}" CommandParameter="5" />
     </Window.InputBindings>
 
     <Grid>
@@ -75,28 +73,42 @@
             <Border Grid.Column="0" Width="176" Background="{DynamicResource Brush.Bg.Surface}"
                     BorderBrush="{DynamicResource Brush.Border.Default}" BorderThickness="0,0,1,0"
                     Visibility="{Binding IsResultsView, Converter={StaticResource Conv.BoolToVis}}">
-                <StackPanel Margin="0,8">
-                    <RadioButton Style="{StaticResource RadioButton.NavRail}" GroupName="Nav" Content="Ağaç"
-                                 Tag="{StaticResource Icon.Tree}" ToolTip="Ağaç (Ctrl+1)"
-                                 IsChecked="{Binding IsTreeActive, Mode=OneWay}"
-                                 Command="{Binding NavigateCommand}" CommandParameter="1" />
-                    <RadioButton Style="{StaticResource RadioButton.NavRail}" GroupName="Nav" Content="Harita"
-                                 Tag="{StaticResource Icon.Treemap}" ToolTip="Harita (Ctrl+2)"
-                                 IsChecked="{Binding IsTreemapActive, Mode=OneWay}"
-                                 Command="{Binding NavigateCommand}" CommandParameter="2" />
-                    <RadioButton Style="{StaticResource RadioButton.NavRail}" GroupName="Nav" Content="Uzantılar"
-                                 Tag="{StaticResource Icon.Extensions}" ToolTip="Uzantılar (Ctrl+3)"
-                                 IsChecked="{Binding IsExtensionsActive, Mode=OneWay}"
-                                 Command="{Binding NavigateCommand}" CommandParameter="3" />
-                    <RadioButton Style="{StaticResource RadioButton.NavRail}" GroupName="Nav" Content="En büyük 100"
-                                 Tag="{StaticResource Icon.TopList}" ToolTip="En büyük 100 dosya (Ctrl+4)"
-                                 IsChecked="{Binding IsTopFilesActive, Mode=OneWay}"
-                                 Command="{Binding NavigateCommand}" CommandParameter="4" />
-                    <RadioButton Style="{StaticResource RadioButton.NavRail}" GroupName="Nav" Content="Yaş dağılımı"
-                                 Tag="{StaticResource Icon.Calendar}" ToolTip="Yaş dağılımı (Ctrl+5)"
-                                 IsChecked="{Binding IsAgeActive, Mode=OneWay}"
-                                 Command="{Binding NavigateCommand}" CommandParameter="5" />
-                </StackPanel>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" Margin="0,8">
+                        <RadioButton Style="{StaticResource RadioButton.NavRail}" GroupName="Nav" Content="Ağaç"
+                                     Tag="{StaticResource Icon.Tree}" ToolTip="Ağaç (Ctrl+1)"
+                                     IsChecked="{Binding IsTreeActive, Mode=OneWay}"
+                                     Command="{Binding NavigateCommand}" CommandParameter="1" />
+                        <RadioButton Style="{StaticResource RadioButton.NavRail}" GroupName="Nav" Content="Harita"
+                                     Tag="{StaticResource Icon.Treemap}" ToolTip="Harita (Ctrl+2)"
+                                     IsChecked="{Binding IsTreemapActive, Mode=OneWay}"
+                                     Command="{Binding NavigateCommand}" CommandParameter="2" />
+                        <RadioButton Style="{StaticResource RadioButton.NavRail}" GroupName="Nav" Content="En büyük 100"
+                                     Tag="{StaticResource Icon.TopList}" ToolTip="En büyük 100 dosya (Ctrl+3)"
+                                     IsChecked="{Binding IsTopFilesActive, Mode=OneWay}"
+                                     Command="{Binding NavigateCommand}" CommandParameter="3" />
+                    </StackPanel>
+
+                    <!-- Hakkında Menü Butonu (kart gibi, basınca açılır) -->
+                    <Button Grid.Row="1" Style="{StaticResource Button.NavCard}"
+                            Command="{Binding OpenAboutCommand}"
+                            ToolTip="Hakkında ve geliştirici bilgileri"
+                            AutomationProperties.Name="Hakkında"
+                            Margin="8,0,8,12">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <TextBlock Text="{StaticResource Icon.Info}" FontFamily="{DynamicResource Font.Icons}"
+                                       FontSize="15" Foreground="{DynamicResource Brush.Accent}"
+                                       VerticalAlignment="Center" Margin="0,0,10,0" />
+                            <TextBlock Text="Hakkında" Style="{StaticResource Text.Body}"
+                                       FontWeight="SemiBold" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+                </Grid>
             </Border>
 
             <!-- Durum: Bos / Taraniyor / Sonuc -->
@@ -135,29 +147,11 @@
                                                                     </Setter.Value>
                                                                 </Setter>
                                                             </DataTrigger>
-                                                            <DataTrigger Binding="{Binding ActiveView}" Value="Extensions">
-                                                                <Setter Property="ContentTemplate">
-                                                                    <Setter.Value>
-                                                                        <DataTemplate>
-                                                                            <views:ExtensionsView />
-                                                                        </DataTemplate>
-                                                                    </Setter.Value>
-                                                                </Setter>
-                                                            </DataTrigger>
                                                             <DataTrigger Binding="{Binding ActiveView}" Value="TopFiles">
                                                                 <Setter Property="ContentTemplate">
                                                                     <Setter.Value>
                                                                         <DataTemplate>
                                                                             <views:TopFilesView />
-                                                                        </DataTemplate>
-                                                                    </Setter.Value>
-                                                                </Setter>
-                                                            </DataTrigger>
-                                                            <DataTrigger Binding="{Binding ActiveView}" Value="Age">
-                                                                <Setter Property="ContentTemplate">
-                                                                    <Setter.Value>
-                                                                        <DataTemplate>
-                                                                            <views:AgeView />
                                                                         </DataTemplate>
                                                                     </Setter.Value>
                                                                 </Setter>

@@ -24,4 +24,14 @@ public partial class MainWindow : Window
             ? SystemParameters.WindowResizeBorderThickness
             : new Thickness(0);
     }
+
+    private void Hyperlink_RequestNavigate(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true });
+        }
+        catch { }
+        e.Handled = true;
+    }
 }

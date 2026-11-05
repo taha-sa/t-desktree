@@ -29,6 +29,12 @@
             </StackPanel>
 
             <StackPanel Grid.Column="2" Orientation="Horizontal">
+                <Button Style="{StaticResource Button.TitleBar}" Width="46" Height="40"
+                        Command="{Binding RestartAsAdminCommand}" ToolTip="Yönetici olarak yeniden başlat"
+                        AutomationProperties.Name="Yönetici olarak yeniden başlat" FontSize="13"
+                        Visibility="{Binding IsRunningAsAdmin, Converter={StaticResource Conv.BoolToVisInv}}">
+                    <TextBlock Text="{StaticResource Icon.Shield}" Foreground="{DynamicResource Brush.Warning}" />
+                </Button>
                 <Button x:Name="ThemeButton" Style="{StaticResource Button.TitleBar}" Width="46" Height="40"
                         Command="{Binding ToggleThemeCommand}" ToolTip="Temayı değiştir"
                         AutomationProperties.Name="Temayı değiştir" FontSize="14">

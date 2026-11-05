@@ -28,13 +28,10 @@ public class ScanEngine
         _bytesScanned = 0;
         _lastProgressReport = DateTime.MinValue;
 
-        var extStats = new ConcurrentDictionary<string, (long count, long size, long alloc)>(StringComparer.OrdinalIgnoreCase);
-        var topFiles = new ConcurrentBag<TopFileItem>();
-        var ageBuckets = new long[5]; // <1mo, 1-3mo, 3-6mo, 6-12mo, >1yr (size)
-        var ageCounts = new long[5];
+        var topFilesQueue = new PriorityQueue<TopFileItem, long>();
+        var topFilesLock = new object();
 
         uint clusterSize = NativeFileSystem.GetClusterSize(targetPath);
-        var now = DateTime.Now;
 
         var dirInfo = new DirectoryInfo(targetPath);
         FsItem root = existingRoot ?? new FsItem
@@ -53,7 +50,7 @@ public class ScanEngine
         {
             await Task.Run(() =>
             {
-                ScanNode(root, clusterSize, extStats, topFiles, ageBuckets, ageCounts, now, cancellationToken);
+                ScanNode(root, clusterSize, topFilesQueue, topFilesLock, cancellationToken);
             }, cancellationToken);
         }
         catch (OperationCanceledException)
@@ -65,41 +62,23 @@ public class ScanEngine
 
         CalculatePercentagesAndSort(root, root.Size);
 
-        // Build Extension statistics
         long totalSize = root.Size;
-        var extList = extStats.Select(kv => new ExtensionStat
-        {
-            Extension = kv.Key,
-            Description = GetExtensionDescription(kv.Key),
-            FileCount = kv.Value.count,
-            TotalSize = kv.Value.size,
-            AllocatedSize = kv.Value.alloc,
-            PercentOfTotal = totalSize > 0 ? (double)kv.Value.size / totalSize * 100.0 : 0.0
-        })
-        .OrderByDescending(e => e.TotalSize)
-        .ToList();
+        var extList = new List<ExtensionStat>();
 
         // Build Top 100 Largest Files
-        var topList = topFiles
-            .OrderByDescending(f => f.Size)
-            .Take(100)
-            .Select((f, idx) =>
-            {
-                f.Rank = idx + 1;
-                f.PercentOfTotal = totalSize > 0 ? (double)f.Size / totalSize * 100.0 : 0.0;
-                return f;
-            })
-            .ToList();
-
-        // Build Age distribution
-        var ageList = new List<AgeDistributionItem>
+        var topList = new List<TopFileItem>(topFilesQueue.Count);
+        while (topFilesQueue.Count > 0)
         {
-            new() { RangeName = TreeMaintenance.AgeRangeNames[0], FileCount = ageCounts[0], TotalSize = ageBuckets[0], PercentOfTotal = totalSize > 0 ? (double)ageBuckets[0] / totalSize * 100.0 : 0 },
-            new() { RangeName = TreeMaintenance.AgeRangeNames[1], FileCount = ageCounts[1], TotalSize = ageBuckets[1], PercentOfTotal = totalSize > 0 ? (double)ageBuckets[1] / totalSize * 100.0 : 0 },
-            new() { RangeName = TreeMaintenance.AgeRangeNames[2], FileCount = ageCounts[2], TotalSize = ageBuckets[2], PercentOfTotal = totalSize > 0 ? (double)ageBuckets[2] / totalSize * 100.0 : 0 },
-            new() { RangeName = TreeMaintenance.AgeRangeNames[3], FileCount = ageCounts[3], TotalSize = ageBuckets[3], PercentOfTotal = totalSize > 0 ? (double)ageBuckets[3] / totalSize * 100.0 : 0 },
-            new() { RangeName = TreeMaintenance.AgeRangeNames[4], FileCount = ageCounts[4], TotalSize = ageBuckets[4], PercentOfTotal = totalSize > 0 ? (double)ageBuckets[4] / totalSize * 100.0 : 0 },
-        };
+            topList.Add(topFilesQueue.Dequeue());
+        }
+        topList.Reverse();
+        for (int idx = 0; idx < topList.Count; idx++)
+        {
+            topList[idx].Rank = idx + 1;
+            topList[idx].PercentOfTotal = totalSize > 0 ? (double)topList[idx].Size / totalSize * 100.0 : 0.0;
+        }
+
+        var ageList = new List<AgeDistributionItem>();
 
         return new ScanResult
         {
@@ -119,11 +98,8 @@ public class ScanEngine
     private void ScanNode(
         FsItem folder,
         uint clusterSize,
-        ConcurrentDictionary<string, (long count, long size, long alloc)> extStats,
-        ConcurrentBag<TopFileItem> topFiles,
-        long[] ageBuckets,
-        long[] ageCounts,
-        DateTime now,
+        PriorityQueue<TopFileItem, long> topFilesQueue,
+        object topFilesLock,
         CancellationToken ct)
     {
         if (ct.IsCancellationRequested) return;
@@ -148,38 +124,37 @@ public class ScanEngine
                 Interlocked.Increment(ref _filesScanned);
                 Interlocked.Add(ref _bytesScanned, childFile.Size);
 
-                // Track Extension
-                string ext = Path.GetExtension(childFile.Name).ToLowerInvariant();
-                if (string.IsNullOrEmpty(ext)) ext = TreeMaintenance.NoExtensionLabel;
-                extStats.AddOrUpdate(ext, (1, childFile.Size, childFile.AllocatedSize), (k, old) => (old.count + 1, old.size + childFile.Size, old.alloc + childFile.AllocatedSize));
-
-                // Track Top Files (keep candidate items if reasonably large)
-                if (childFile.Size > 1024 * 1024) // > 1 MB
+                // Track Top 100 Largest Files (min-heap ile sabit 100 elemanli, boyut kısıtlamasız)
+                lock (topFilesLock)
                 {
-                    topFiles.Add(new TopFileItem
+                    if (topFilesQueue.Count < 100)
                     {
-                        Name = childFile.Name,
-                        DirectoryPath = folder.FullPath,
-                        FullPath = childFile.FullPath,
-                        Extension = ext,
-                        Size = childFile.Size,
-                        AllocatedSize = childFile.AllocatedSize,
-                        LastModified = childFile.LastModified
-                    });
+                        topFilesQueue.Enqueue(new TopFileItem
+                        {
+                            Name = childFile.Name,
+                            DirectoryPath = folder.FullPath,
+                            FullPath = childFile.FullPath,
+                            Extension = Path.GetExtension(childFile.Name),
+                            Size = childFile.Size,
+                            AllocatedSize = childFile.AllocatedSize,
+                            LastModified = childFile.LastModified
+                        }, childFile.Size);
+                    }
+                    else if (childFile.Size > topFilesQueue.Peek().Size)
+                    {
+                        topFilesQueue.Dequeue();
+                        topFilesQueue.Enqueue(new TopFileItem
+                        {
+                            Name = childFile.Name,
+                            DirectoryPath = folder.FullPath,
+                            FullPath = childFile.FullPath,
+                            Extension = Path.GetExtension(childFile.Name),
+                            Size = childFile.Size,
+                            AllocatedSize = childFile.AllocatedSize,
+                            LastModified = childFile.LastModified
+                        }, childFile.Size);
+                    }
                 }
-
-                // Track Age
-                var ageDays = (now - childFile.LastModified).TotalDays;
-                int bucketIndex = ageDays switch
-                {
-                    < 30 => 0,
-                    < 90 => 1,
-                    < 180 => 2,
-                    < 365 => 3,
-                    _ => 4
-                };
-                Interlocked.Add(ref ageBuckets[bucketIndex], childFile.Size);
-                Interlocked.Increment(ref ageCounts[bucketIndex]);
 
                 if ((_filesScanned & 63) == 0)
                 {
@@ -199,7 +174,7 @@ public class ScanEngine
             bool isReparse = (sub.Attributes & FileAttributes.ReparsePoint) != 0;
             if (!isReparse)
             {
-                ScanNode(sub, clusterSize, extStats, topFiles, ageBuckets, ageCounts, now, ct);
+                ScanNode(sub, clusterSize, topFilesQueue, topFilesLock, ct);
             }
 
             folder.Size += sub.Size;

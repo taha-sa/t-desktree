@@ -35,6 +35,23 @@ public class FsItem : INotifyPropertyChanged
     public ObservableCollection<FsItem> Children { get; } = new();
 
     [JsonIgnore]
+    public bool IsSubfolder => IsDirectory && Parent != null;
+
+    [JsonIgnore]
+    public int Depth
+    {
+        get
+        {
+            int d = 0;
+            for (var p = Parent; p != null; p = p.Parent) d++;
+            return d;
+        }
+    }
+
+    [JsonIgnore]
+    public int DepthColorLevel => Depth <= 5 ? Depth : 1 + ((Depth - 1) % 5);
+
+    [JsonIgnore]
     public object SyncLock => _childrenLock;
 
     public FsItem()

@@ -37,6 +37,7 @@
     <sys:String x:Key="Icon.Warning">&#xE7BA;</sys:String>
     <sys:String x:Key="Icon.Info">&#xE946;</sys:String>
     <sys:String x:Key="Icon.Check">&#xE73E;</sys:String>
+    <sys:String x:Key="Icon.Shield">&#xE7EF;</sys:String>
     <sys:String x:Key="Icon.ChevronRight">&#xE76C;</sys:String>
     <sys:String x:Key="Icon.ChevronDown">&#xE70D;</sys:String>
     <sys:String x:Key="Icon.ChevronUp">&#xE70E;</sys:String>
