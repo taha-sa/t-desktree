@@ -10,6 +10,8 @@ namespace AmberTree.Views;
 /// <summary>Güncelleme afişi: yalnızca 150 ms aşağı kayma animasyonu; mantık UpdateBannerViewModel'de.</summary>
 public partial class UpdateBanner : UserControl
 {
+    private int _animToken;   // yalnız en son animasyonun Completed'ı Collapse eder
+
     public UpdateBanner()
     {
         InitializeComponent();
@@ -20,6 +22,7 @@ public partial class UpdateBanner : UserControl
     private void OnChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName != nameof(UpdateBannerViewModel.IsBannerVisible)) return;
+        int token = ++_animToken;
         if (UpdateBannerViewModel.Instance.IsBannerVisible)
         {
             Root.Visibility = Visibility.Visible;
@@ -29,7 +32,7 @@ public partial class UpdateBanner : UserControl
         else
         {
             var close = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(150));
-            close.Completed += (_, _) => Root.Visibility = Visibility.Collapsed;
+            close.Completed += (_, _) => { if (token == _animToken) Root.Visibility = Visibility.Collapsed; };
             Slide.BeginAnimation(System.Windows.Media.ScaleTransform.ScaleYProperty, close);
         }
     }
