@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using AmberTree.Services;
+using TSuite.Diagnostics;
 
 namespace AmberTree;
 
@@ -11,6 +12,7 @@ public partial class App : Application
 {
     // Tek örnek kilidi: App ömrü boyunca tutulmalı (GC/kapanma erken bırakmasın).
     private Mutex? _singleInstanceMutex;
+    private IDisposable? _crashHook;
     internal static bool StartInBackground { get; private set; }
 
     protected override async void OnStartup(StartupEventArgs e)
@@ -47,10 +49,19 @@ public partial class App : Application
             return;
         }
 
+        CrashReporter.Install("t-desktree", "T-DeskTree", typeof(App).Assembly.GetName().Version?.ToString(3) ?? "1.1.0", "taha-sa/t-desktree-releases");
+        _crashHook = CrashReporter.InstallWpf(Dispatcher);
+        Log.Info("Application starting");
         StartActivationListener();
 
         ThemeService.Current.LoadSaved();
         base.OnStartup(e);
+    }
+
+    protected override void OnExit(ExitEventArgs e)
+    {
+        _crashHook?.Dispose();
+        base.OnExit(e);
     }
 
     private EventWaitHandle? _activateEvent;

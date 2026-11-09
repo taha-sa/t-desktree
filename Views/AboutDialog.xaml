@@ -98,6 +98,12 @@
                           Foreground="{DynamicResource Brush.Text.Secondary}" Margin="0,0,0,16"
                           Click="StartWithWindows_Click" />
 
+                <CheckBox x:Name="AutoReportsCheckBox" Content="Hata raporlar?n? otomatik haz?rla"
+                          Foreground="{DynamicResource Brush.Text.Secondary}" Margin="0,0,0,12"
+                          Click="AutoReports_Click" />
+                <Button Content="Hata raporu g?nder?" Style="{StaticResource Button.Secondary}"
+                        HorizontalAlignment="Left" Margin="0,0,0,16" Click="Report_Click" />
+
                 <!-- Kapat Butonu -->
                 <Button Content="Kapat" Style="{StaticResource Button.Secondary}"
                         MinWidth="96" HorizontalAlignment="Right" IsCancel="True" Click="Close_Click" />

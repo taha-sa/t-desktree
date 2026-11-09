@@ -11,6 +11,7 @@ public partial class AboutDialog : Window
     public AboutDialog()
     {
         InitializeComponent();
+        AutoReportsCheckBox.IsChecked = TSuite.Diagnostics.CrashReporter.AutomaticallyPrepareReports;
         DataContext = AmberTree.Services.UpdateBannerViewModel.Instance;
         using (var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run"))
             StartWithWindowsCheckBox.IsChecked = key?.GetValue("T-DeskTree") is string;
@@ -36,6 +37,22 @@ public partial class AboutDialog : Window
             StartWithWindowsCheckBox.IsChecked = StartWithWindowsCheckBox.IsChecked != true;
             MessageBox.Show($"Ba?lang?? ayar? kaydedilemedi: {ex.Message}", "T-DeskTree", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
+    }
+
+    private void AutoReports_Click(object sender, RoutedEventArgs e)
+    {
+        try { TSuite.Diagnostics.CrashReporter.AutomaticallyPrepareReports = AutoReportsCheckBox.IsChecked == true; }
+        catch (Exception ex)
+        {
+            TSuite.Diagnostics.Log.Error("Could not save crash reporting preference", ex);
+            AutoReportsCheckBox.IsChecked = TSuite.Diagnostics.CrashReporter.AutomaticallyPrepareReports;
+            MessageBox.Show("Ayar kaydedilemedi: " + ex.Message, "T-DeskTree", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void Report_Click(object sender, RoutedEventArgs e)
+    {
+        new CrashPreviewDialog(CrashPreviewDialog.CreateManualReport(), false) { Owner = this }.ShowDialog();
     }
 
     private void Close_Click(object sender, RoutedEventArgs e)

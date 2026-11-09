@@ -26,7 +26,15 @@ public partial class MainWindow : Window
         UpdateBannerViewModel.Instance.ScheduleCheck(null, link.PublishUpdateAvailable);
         Closed += async (_, _) => await link.DisposeAsync();
         StateChanged += (_, _) => UpdateMaximizeInset();
-        Loaded += (_, _) => UpdateMaximizeInset();
+        Loaded += (_, _) =>
+        {
+            UpdateMaximizeInset();
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ApplicationIdle, new System.Action(() =>
+            {
+                if (TSuite.Diagnostics.CrashReporter.GetPendingReport() is { } report)
+                    new Views.CrashPreviewDialog(report, true) { Owner = this }.ShowDialog();
+            }));
+        };
     }
 
     /// <summary>WindowChrome ile ekranı kaplayan pencere ekran dışına taşar; çerçeve kalınlığı kadar iç boşluk bırakır.</summary>
