@@ -9,8 +9,19 @@ namespace AmberTree;
 
 public partial class App : Application
 {
+    // Tek örnek kilidi: App ömrü boyunca tutulmalı (GC/kapanma erken bırakmasın).
+    private Mutex? _singleInstanceMutex;
+
     protected override async void OnStartup(StartupEventArgs e)
     {
+        _singleInstanceMutex = new Mutex(true, @"Local\T-DeskTree.Single", out bool created);
+        if (!created)
+        {
+            // Zaten çalışan bir örnek var: ikinci örneği başlatma (pipe/registry'yi ezmesin).
+            Shutdown();
+            return;
+        }
+
         if (e.Args.Length > 0 && e.Args[0] == "--test")
         {
             await RunDiagnosticsAndExitAsync();
