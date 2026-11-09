@@ -81,6 +81,19 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Güncelleme denetimi -->
+                <Grid Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Button Content="Güncellemeleri denetle" Style="{StaticResource Button.Secondary}"
+                            Command="{Binding CheckCommand}" AutomationProperties.Name="Güncellemeleri denetle" />
+                    <TextBlock Grid.Column="1" Text="{Binding CheckStatus}" Style="{StaticResource Text.Secondary}"
+                               TextWrapping="Wrap" Margin="12,0,0,0" VerticalAlignment="Center"
+                               AutomationProperties.LiveSetting="Polite" />
+                </Grid>
+
                 <!-- Kapat Butonu -->
                 <Button Content="Kapat" Style="{StaticResource Button.Secondary}"
                         MinWidth="96" HorizontalAlignment="Right" IsCancel="True" Click="Close_Click" />

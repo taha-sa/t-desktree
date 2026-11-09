@@ -28,7 +28,8 @@ public sealed class UpdateBannerViewModel : ObservableBase
 
     /// <summary>Tek denetleyici: arka plan kontrolü ve T-Link standart komutları (app.update.check/install) bunu paylaşır.</summary>
     public UpdateController Controller { get; }
-    private bool _visible, _downloading, _notesOpen, _failed;
+    private bool _visible, _downloading, _launching, _notesOpen, _failed, _checking;
+    private string _checkStatus = "";
     private string _title = "", _notes = "", _error = "";
     private double _progress;
 
@@ -37,6 +38,8 @@ public sealed class UpdateBannerViewModel : ObservableBase
         UpdateCommand = new RelayCommand(_ => _ = StartAsync(), _ => !Downloading && _ctl?.Info != null);
         LaterCommand = new RelayCommand(_ => { _ctl?.Later(); Hide(); });
         SkipCommand = new RelayCommand(_ => { _ctl?.Skip(); Hide(); });
+        CancelCommand = new RelayCommand(_ => Controller.Cancel(), _ => _downloading);
+        CheckCommand = new RelayCommand(_ => _ = CheckManualAsync(), _ => !_checking && !_downloading && !_launching);
         ToggleNotesCommand = new RelayCommand(_ => NotesOpen = !NotesOpen);
         Controller = new UpdateController(new UpdateChecker(MakeOptions()));
         Controller.ProgressChanged += p => OnUi(() => Progress = p * 100.0);
@@ -52,10 +55,17 @@ public sealed class UpdateBannerViewModel : ObservableBase
     public ICommand LaterCommand { get; }
     public ICommand SkipCommand { get; }
     public ICommand ToggleNotesCommand { get; }
+    public ICommand CancelCommand { get; }
+    public ICommand CheckCommand { get; }
 
     public bool IsBannerVisible { get => _visible; private set { if (_visible != value) { _visible = value; Raise(nameof(IsBannerVisible)); } } }
-    public bool Downloading { get => _downloading; private set { if (_downloading != value) { _downloading = value; Raise(nameof(Downloading)); Raise(nameof(NotDownloading)); } } }
-    public bool NotDownloading => !_downloading;
+    public bool Downloading { get => _downloading; private set { if (_downloading != value) { _downloading = value; Raise(nameof(Downloading)); Raise(nameof(NotDownloading)); Raise(nameof(ShowProgress)); } } }
+    public bool NotDownloading => !_downloading && !_launching;
+    /// <summary>Yardımcı başlatılıyor: belirsiz ilerleme, "Yeniden başlatılıyor…".</summary>
+    public bool Launching { get => _launching; private set { if (_launching != value) { _launching = value; Raise(nameof(Launching)); Raise(nameof(NotDownloading)); } } }
+    public bool ShowProgress => _downloading;
+    public string CheckStatus { get => _checkStatus; private set { _checkStatus = value; Raise(nameof(CheckStatus)); } }
+    public bool Checking { get => _checking; private set { if (_checking != value) { _checking = value; Raise(nameof(Checking)); CommandManager.InvalidateRequerySuggested(); } } }
     public bool NotesOpen { get => _notesOpen; set { if (_notesOpen != value) { _notesOpen = value; Raise(nameof(NotesOpen)); } } }
     public bool Failed { get => _failed; private set { if (_failed != value) { _failed = value; Raise(nameof(Failed)); } } }
     public string Title { get => _title; private set { _title = value; Raise(nameof(Title)); } }
@@ -68,12 +78,15 @@ public sealed class UpdateBannerViewModel : ObservableBase
     /// <summary>Açılıştan <paramref name="delay"/> sonra (varsayılan 30 sn) arka planda sürüm kontrolü.</summary>
     public void ScheduleCheck(TimeSpan? delay = null, Action<UpdateInfo>? onAvailable = null)
     {
+        // Bekleyen ("Sonra" denmiş, 24 sa) sürüm ağsız hemen gösterilir.
+        OnUi(() => { try { if (Controller.LoadPending()) Show(Controller); } catch { } });
         _ = Task.Run(async () =>
         {
             try
             {
                 await Task.Delay(delay ?? TimeSpan.FromSeconds(30)).ConfigureAwait(false);
                 var ctl = Controller;
+                if (IsBannerVisible) return;   // bekleyen afiş zaten gösteriliyor
                 if (!await ctl.CheckAsync().ConfigureAwait(false) || ctl.Info == null) return;
                 onAvailable?.Invoke(ctl.Info);
                 OnUi(() => Show(ctl));
@@ -96,6 +109,32 @@ public sealed class UpdateBannerViewModel : ObservableBase
         CommandManager.InvalidateRequerySuggested();
     }
 
+    /// <summary>Elle denetim (Hakkında penceresi): MinInterval atlanır.</summary>
+    private async Task CheckManualAsync()
+    {
+        if (Controller.IsBusy || _checking) return;
+        Checking = true;
+        CheckStatus = "Denetleniyor…";
+        try
+        {
+            bool found = await Controller.CheckNow(true).ConfigureAwait(false);
+            var ctl = Controller;
+            if (found && ctl.Info != null)
+                OnUi(() => { Show(ctl); CheckStatus = $"Yeni sürüm {ctl.Info!.NewVersion} hazır."; });
+            else
+            {
+                var err = ctl.Error;
+                OnUi(() =>
+                {
+                    if (!_downloading && !_launching) Hide();
+                    CheckStatus = string.IsNullOrWhiteSpace(err) ? "Güncelsiniz." : "Denetlenemedi: " + err;
+                });
+            }
+        }
+        catch (Exception ex) { OnUi(() => CheckStatus = "Denetlenemedi: " + ex.Message); }
+        finally { OnUi(() => Checking = false); }
+    }
+
     private void Hide() => IsBannerVisible = false;
 
     private async Task StartAsync()
@@ -108,7 +147,9 @@ public sealed class UpdateBannerViewModel : ObservableBase
 
     private void OnState(UpdateController ctl)
     {
-        Downloading = ctl.State is UpdateState.Downloading or UpdateState.Launching;
+        Downloading = ctl.State == UpdateState.Downloading;
+        Launching = ctl.State == UpdateState.Launching;
+        if (ctl.State == UpdateState.Idle) Progress = 0;   // iptal: hata değil, normal afiş durumuna dön
         if (ctl.State == UpdateState.Failed)
         {
             Failed = true;

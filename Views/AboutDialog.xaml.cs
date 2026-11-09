@@ -10,6 +10,7 @@ public partial class AboutDialog : Window
     public AboutDialog()
     {
         InitializeComponent();
+        DataContext = AmberTree.Services.UpdateBannerViewModel.Instance;
 
         if (Application.Current?.MainWindow != null && Application.Current.MainWindow.IsVisible)
         {

@@ -44,13 +44,24 @@
                             AutomationProperties.Name="Güncellemeyi indir ve kur" />
                 </StackPanel>
 
-                <!-- İndirme durumu: ilerleme çubuğu -->
+                <!-- İndirme durumu: ilerleme çubuğu + İptal -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center"
-                            Visibility="{Binding Downloading, Converter={StaticResource Conv.BoolToVis}}">
+                            Visibility="{Binding ShowProgress, Converter={StaticResource Conv.BoolToVis}}">
                     <ProgressBar Width="160" Height="4" Minimum="0" Maximum="100" Value="{Binding Progress}" BorderThickness="0"
                                  Foreground="{DynamicResource Brush.Accent}" Background="{DynamicResource Brush.Bg.Subtle}"
                                  AutomationProperties.Name="Güncelleme indiriliyor" />
-                    <TextBlock Text="{Binding ProgressText}" Style="{StaticResource Text.Secondary}" Margin="10,0,0,0" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding ProgressText}" Style="{StaticResource Text.Secondary}" Margin="10,0,10,0" VerticalAlignment="Center" />
+                    <Button Content="İptal" Style="{StaticResource Button.Ghost}" Command="{Binding CancelCommand}"
+                            AutomationProperties.Name="Güncelleme indirmesini iptal et" />
+                </StackPanel>
+
+                <!-- Yeniden başlatılıyor: belirsiz ilerleme -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center"
+                            Visibility="{Binding Launching, Converter={StaticResource Conv.BoolToVis}}">
+                    <ProgressBar Width="160" Height="4" IsIndeterminate="True" BorderThickness="0"
+                                 Foreground="{DynamicResource Brush.Accent}" Background="{DynamicResource Brush.Bg.Subtle}"
+                                 AutomationProperties.Name="Uygulama yeniden başlatılıyor" />
+                    <TextBlock Text="Yeniden başlatılıyor…" Style="{StaticResource Text.Secondary}" Margin="10,0,0,0" VerticalAlignment="Center" />
                 </StackPanel>
             </Grid>
 
