@@ -35,7 +35,10 @@
         </Grid.RowDefinitions>
 
         <!-- Baslik cubugu -->
-        <views:TitleBar Grid.Row="0" />
+        <StackPanel Grid.Row="0">
+            <views:TitleBar />
+            <views:UpdateBanner />
+        </StackPanel>
 
         <!-- Komut cubugu -->
         <views:CommandBar Grid.Row="1" />

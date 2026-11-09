@@ -9,10 +9,17 @@ public partial class MainWindow : Window
 {
     public MainWindow()
     {
-        DataContext = new MainWindowViewModel(new DialogService(), new WpfUiDispatcher(Dispatcher));
+        var vm = new MainWindowViewModel(new DialogService(), new WpfUiDispatcher(Dispatcher));
+        DataContext = vm;
         InitializeComponent();
         WindowStateService.Apply(this);
         Closing += (_, _) => WindowStateService.Save(this);
+
+        // T-Suite: T-Link sunucusu + güncelleme afişi (30 sn sonra arka planda kontrol)
+        var link = new AppLink(this, vm);
+        link.Start();
+        UpdateBannerViewModel.Instance.ScheduleCheck(null, link.PublishUpdateAvailable);
+        Closed += async (_, _) => await link.DisposeAsync();
         StateChanged += (_, _) => UpdateMaximizeInset();
         Loaded += (_, _) => UpdateMaximizeInset();
     }

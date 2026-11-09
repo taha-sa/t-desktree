@@ -59,6 +59,20 @@ public partial class App : Application
             }
             Console.WriteLine($"PASSED ({drives.Count} active drives found: {string.Join(", ", drives.ConvertAll(d => d.Name))})");
 
+            // Test 6: T-Link disk uyarı kuralı (<%10 veya <10 GB, sürücü başına 6 saat bekleme)
+            Console.Write("[TEST 3b] Testing DiskAlert rules... ");
+            const long gb = 1024L * 1024 * 1024;
+            var last = new System.Collections.Generic.Dictionary<string, DateTime>();
+            var t0 = DateTime.UtcNow;
+            if (DiskAlert.IsLow(500 * gb, 1000 * gb)) throw new Exception("%50 boş uyarı vermemeli");
+            if (!DiskAlert.IsLow(5 * gb, 1000 * gb)) throw new Exception("5 GB boş uyarı vermeli");
+            if (!DiskAlert.IsLow(80 * gb, 1000 * gb)) throw new Exception("%8 boş uyarı vermeli");
+            if (!DiskAlert.ShouldRaise(last, "C:\\", 5 * gb, 1000 * gb, t0)) throw new Exception("ilk uyarı verilmeli");
+            if (DiskAlert.ShouldRaise(last, "C:\\", 5 * gb, 1000 * gb, t0.AddHours(5))) throw new Exception("6 saat içinde tekrar verilmemeli");
+            if (!DiskAlert.ShouldRaise(last, "C:\\", 5 * gb, 1000 * gb, t0.AddHours(7))) throw new Exception("6 saat sonra tekrar verilmeli");
+            if (!DiskAlert.ShouldRaise(last, "D:\\", 5 * gb, 1000 * gb, t0)) throw new Exception("başka sürücü bağımsız olmalı");
+            Console.WriteLine("PASSED");
+
             // Test 4: Live Directory Scan with ScanEngine
             string testDir = Directory.Exists(@"C:\Users\hp\Desktop\araçlar")
                 ? @"C:\Users\hp\Desktop\araçlar"
@@ -98,7 +112,7 @@ public partial class App : Application
             Console.WriteLine("PASSED");
 
             Console.WriteLine("==================================================");
-            Console.WriteLine(" ALL T-DESKTREE TESTS PASSED SUCCESSFULLY! (5/5)");
+            Console.WriteLine(" ALL T-DESKTREE TESTS PASSED SUCCESSFULLY! (6/6)");
             Console.WriteLine("==================================================");
 
             Environment.Exit(0);

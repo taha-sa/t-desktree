@@ -8,7 +8,7 @@
     <UseWPF>true</UseWPF>
     <ApplicationIcon>app.ico</ApplicationIcon>
     <AssemblyName>T-DeskTree</AssemblyName>
-    <Version>1.0.0</Version>
+    <Version>1.1.0</Version>
     <Product>T-DeskTree Disk Space Analyzer</Product>
     <Description>High-performance disk space manager with Graphite / Aurora aesthetic</Description>
     <Company>tdesk.studio</Company>
@@ -18,5 +18,28 @@
     <Resource Include="app.ico" />
     <Resource Include="Assets\logo.png" />
   </ItemGroup>
+
+  <!-- T-Suite SDK: kardes depo C:\Users\hp\Projects\t-suite (bkz. README.md). Baska yer icin: -p:TSuiteRoot=... -->
+  <PropertyGroup>
+    <TSuiteRoot Condition="'$(TSuiteRoot)' == ''">$(MSBuildProjectDirectory)\..\..\..\..\Projects\t-suite</TSuiteRoot>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="$(TSuiteRoot)\src\TSuite.Link\TSuite.Link.csproj" />
+    <ProjectReference Include="$(TSuiteRoot)\src\TSuite.Update\TSuite.Update.csproj" />
+    <ProjectReference Include="$(TSuiteRoot)\src\TSuite.Updater\TSuite.Updater.csproj" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <!-- TSuite.Updater yardimcisini (exe + dll + runtimeconfig) uygulamanin yanina kopyala -->
+  <Target Name="CopyUpdater" AfterTargets="Build">
+    <ItemGroup>
+      <UpdaterFiles Include="$(TSuiteRoot)\src\TSuite.Updater\bin\$(Configuration)\net10.0\TSuite.Updater.*" Exclude="**\*.pdb" />
+    </ItemGroup>
+    <Copy SourceFiles="@(UpdaterFiles)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
+  </Target>
+  <Target Name="PublishUpdater" AfterTargets="ComputeFilesToPublish">
+    <ItemGroup>
+      <ResolvedFileToPublish Include="@(UpdaterFiles)" RelativePath="%(Filename)%(Extension)" CopyToPublishDirectory="PreserveNewest" />
+    </ItemGroup>
+  </Target>
 
 </Project>

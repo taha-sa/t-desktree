@@ -419,6 +419,9 @@ public class MainWindowViewModel : INotifyPropertyChanged
     public bool ShowNoSearchResults => IsSearchActive && RootItem != null && !HasSearchResults;
 
     /// <summary>Ctrl+F: arama kutusuna odaklanilmasini ister (View dinler).</summary>
+    /// <summary>Tarama başarıyla (iptal edilmeden) bitti (T-Link scan.finished için).</summary>
+    public event EventHandler<ScanFinishedEventArgs>? ScanFinished;
+
     public event EventHandler? FocusSearchRequested;
 
     /// <summary>Birim modu degisti; DataGrid vb. yenilemek isteyenler dinleyebilir.</summary>
@@ -757,6 +760,7 @@ public class MainWindowViewModel : INotifyPropertyChanged
                 StatusText = $"Tarama tamamlandı{engineTag}: {result.Elapsed.TotalSeconds:F2} sn ({result.TotalFiles:N0} dosya, {result.TotalFolders:N0} klasör, {SizeFormatter.FormatBytes(result.TotalSize, CurrentUnitMode)})";
                 LastScannedPath = scanPath;
                 SaveLastScannedPath(scanPath);
+                ScanFinished?.Invoke(this, new ScanFinishedEventArgs(scanPath, result.TotalSize, result.Elapsed));
             }
             RefreshDriveInfo();
         }
@@ -1253,6 +1257,13 @@ public class MainWindowViewModel : INotifyPropertyChanged
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     }
+}
+
+public sealed class ScanFinishedEventArgs(string root, long totalBytes, TimeSpan duration) : EventArgs
+{
+    public string Root { get; } = root;
+    public long TotalBytes { get; } = totalBytes;
+    public TimeSpan Duration { get; } = duration;
 }
 
 public class RelayCommand : ICommand
