@@ -112,9 +112,19 @@ public sealed class UpdateBannerViewModel : ObservableBase
         if (ctl.State == UpdateState.Failed)
         {
             Failed = true;
-            Error = ctl.Error ?? "Güncelleme indirilemedi";
+            Error = FriendlyError(ctl.Error);
         }
         CommandManager.InvalidateRequerySuggested();
+    }
+
+    private static string FriendlyError(string? e)
+    {
+        if (string.IsNullOrWhiteSpace(e)) return "Güncelleme indirilemedi";
+        if (e.Contains("SHA-256")) return "Dosya doğrulaması başarısız (bozuk indirme).";
+        if (e.Contains("signature", StringComparison.OrdinalIgnoreCase)) return "Güncelleme imzası geçersiz.";
+        if (e.Contains("https")) return "Güvenli olmayan indirme adresi reddedildi.";
+        if (e.Contains("canceled", StringComparison.OrdinalIgnoreCase)) return "Güncelleme iptal edildi.";
+        return "Güncelleme başarısız: " + e;
     }
 
     private static void OnUi(Action a)

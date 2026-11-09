@@ -26,6 +26,7 @@
                             Visibility="{Binding HasNotes, Converter={StaticResource Conv.BoolToVis}}"
                             AutomationProperties.Name="Sürüm notlarını göster veya gizle" />
                     <TextBlock Text="{Binding Error}" Style="{StaticResource Text.Secondary}" Foreground="{DynamicResource Brush.Danger}"
+                               TextWrapping="Wrap" MaxWidth="420"
                                Margin="12,0,0,0" VerticalAlignment="Center"
                                Visibility="{Binding Failed, Converter={StaticResource Conv.BoolToVis}}" />
                 </StackPanel>
