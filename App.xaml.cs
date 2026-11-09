@@ -11,6 +11,7 @@ public partial class App : Application
 {
     // Tek örnek kilidi: App ömrü boyunca tutulmalı (GC/kapanma erken bırakmasın).
     private Mutex? _singleInstanceMutex;
+    internal static bool StartInBackground { get; private set; }
 
     protected override async void OnStartup(StartupEventArgs e)
     {
@@ -29,9 +30,12 @@ public partial class App : Application
             return;
         }
 
+        StartInBackground = Array.Exists(e.Args, arg => string.Equals(arg, "--background", StringComparison.OrdinalIgnoreCase));
+
         _singleInstanceMutex = new Mutex(true, @"Local\T-DeskTree.Single", out bool created);
         if (!created)
         {
+            if (StartInBackground) { Shutdown(); return; }
             // Zaten çalışan örnek var: onu öne getirmesi için sinyal ver, kendini kapat.
             try
             {

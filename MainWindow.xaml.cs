@@ -13,6 +13,11 @@ public partial class MainWindow : Window
         DataContext = vm;
         InitializeComponent();
         WindowStateService.Apply(this);
+        if (App.StartInBackground)
+        {
+            ShowActivated = false;
+            WindowState = WindowState.Minimized;
+        }
         Closing += (_, _) => WindowStateService.Save(this);
 
         // T-Suite: T-Link sunucusu + güncelleme afişi (30 sn sonra arka planda kontrol)

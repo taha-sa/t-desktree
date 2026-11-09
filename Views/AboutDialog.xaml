@@ -94,6 +94,10 @@
                                AutomationProperties.LiveSetting="Polite" />
                 </Grid>
 
+                <CheckBox x:Name="StartWithWindowsCheckBox" Content="Windows ile ba?lat"
+                          Foreground="{DynamicResource Brush.Text.Secondary}" Margin="0,0,0,16"
+                          Click="StartWithWindows_Click" />
+
                 <!-- Kapat Butonu -->
                 <Button Content="Kapat" Style="{StaticResource Button.Secondary}"
                         MinWidth="96" HorizontalAlignment="Right" IsCancel="True" Click="Close_Click" />

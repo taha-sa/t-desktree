@@ -42,6 +42,11 @@ dotnet publish $Project -c Release -r $Rid --self-contained false -p:PublishSing
   -p:Version=$Version -p:AssemblyVersion="$($Version -replace '-.*$','').0" -o $pub
 if ($LASTEXITCODE -ne 0) { throw 'dotnet publish basarisiz' }
 
+$requiredFiles = @($ExeName, 'TSuite.Updater.exe', 'TSuite.Updater.dll', 'TSuite.Updater.runtimeconfig.json', 'TSuite.Updater.deps.json')
+foreach ($file in $requiredFiles) {
+  if (-not (Test-Path -LiteralPath (Join-Path $pub $file) -PathType Leaf)) { throw "Yayin dosyasi eksik: $file" }
+}
+
 $artifact = Join-Path $out $ArtifactAs
 if ($ArtifactAs.EndsWith('.zip')) {
   Compress-Archive -Path (Join-Path $pub '*') -DestinationPath $artifact -Force
