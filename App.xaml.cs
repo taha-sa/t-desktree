@@ -14,21 +14,14 @@ public partial class App : Application
 
     protected override async void OnStartup(StartupEventArgs e)
     {
-        _singleInstanceMutex = new Mutex(true, @"Local\T-DeskTree.Single", out bool created);
-        if (!created)
-        {
-            // Zaten çalışan bir örnek var: ikinci örneği başlatma (pipe/registry'yi ezmesin).
-            Shutdown();
-            return;
-        }
-
+        // CLI-only modlar tek-örnek kilidinden ÖNCE: çalışan örnekle yan yana çalışabilmeli.
         if (e.Args.Length > 0 && e.Args[0] == "--test")
         {
             await RunDiagnosticsAndExitAsync();
             return;
         }
 
-        // T-Bridge "Hepsini güncelle": kapalıyken `--update` ile başlatılır -> kontrol, indirme, yardımcıyı başlat, çık (arayüz yok).
+        // T-Bridge "Hepsini güncelle": `--update` ile başlatılır -> kontrol, indirme, yardımcıyı başlat, çık (arayüz yok).
         if (TSuite.Update.UpdateCli.IsRequested(e.Args))
         {
             int code = await TSuite.Update.UpdateCli.RunAsync(UpdateBannerViewModel.MakeOptions());
@@ -36,8 +29,51 @@ public partial class App : Application
             return;
         }
 
+        _singleInstanceMutex = new Mutex(true, @"Local\T-DeskTree.Single", out bool created);
+        if (!created)
+        {
+            // Zaten çalışan örnek var: onu öne getirmesi için sinyal ver, kendini kapat.
+            try
+            {
+                using var ev = EventWaitHandle.OpenExisting(@"Local\T-DeskTree.Activate");
+                ev.Set();
+            }
+            catch { /* ilk örnek henüz hazır değil: sessizce çık */ }
+            Shutdown();
+            return;
+        }
+
+        StartActivationListener();
+
         ThemeService.Current.LoadSaved();
         base.OnStartup(e);
+    }
+
+    private EventWaitHandle? _activateEvent;
+
+    private void StartActivationListener()
+    {
+        _activateEvent = new EventWaitHandle(false, EventResetMode.AutoReset, @"Local\T-DeskTree.Activate");
+        var ev = _activateEvent;
+        var t = new Thread(() =>
+        {
+            while (ev.WaitOne())
+            {
+                var d = Dispatcher;
+                if (d == null || d.HasShutdownStarted) break;
+                d.BeginInvoke(new Action(() =>
+                {
+                    var w = MainWindow;
+                    if (w == null) return;
+                    if (!w.IsVisible) w.Show();
+                    if (w.WindowState == WindowState.Minimized) w.WindowState = WindowState.Normal;
+                    w.Activate();
+                    w.Topmost = true; w.Topmost = false;
+                    w.Focus();
+                }));
+            }
+        }) { IsBackground = true, Name = "ActivateListener" };
+        t.Start();
     }
 
     private static async Task RunDiagnosticsAndExitAsync()
