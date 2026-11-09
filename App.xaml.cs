@@ -17,6 +17,14 @@ public partial class App : Application
             return;
         }
 
+        // T-Bridge "Hepsini güncelle": kapalıyken `--update` ile başlatılır -> kontrol, indirme, yardımcıyı başlat, çık (arayüz yok).
+        if (TSuite.Update.UpdateCli.IsRequested(e.Args))
+        {
+            int code = await TSuite.Update.UpdateCli.RunAsync(UpdateBannerViewModel.MakeOptions());
+            Shutdown(code);
+            return;
+        }
+
         ThemeService.Current.LoadSaved();
         base.OnStartup(e);
     }

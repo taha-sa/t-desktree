@@ -23,6 +23,11 @@ public sealed class UpdateBannerViewModel : ObservableBase
     public static UpdateBannerViewModel Instance { get; } = new();
 
     private UpdateController? _ctl;
+
+    public static UpdateOptions MakeOptions() => new() { AppId = AppId, CurrentVersion = CurrentVersion, PublicKeyBase64 = PublicKey };
+
+    /// <summary>Tek denetleyici: arka plan kontrolü ve T-Link standart komutları (app.update.check/install) bunu paylaşır.</summary>
+    public UpdateController Controller { get; }
     private bool _visible, _downloading, _notesOpen, _failed;
     private string _title = "", _notes = "", _error = "";
     private double _progress;
@@ -33,6 +38,14 @@ public sealed class UpdateBannerViewModel : ObservableBase
         LaterCommand = new RelayCommand(_ => { _ctl?.Later(); Hide(); });
         SkipCommand = new RelayCommand(_ => { _ctl?.Skip(); Hide(); });
         ToggleNotesCommand = new RelayCommand(_ => NotesOpen = !NotesOpen);
+        Controller = new UpdateController(new UpdateChecker(MakeOptions()));
+        Controller.ProgressChanged += p => OnUi(() => Progress = p * 100.0);
+        Controller.StateChanged += () => OnUi(() =>
+        {
+            if (!IsBannerVisible && Controller.Info != null && Controller.State == UpdateState.Downloading) Show(Controller);
+            OnState(Controller);
+        });
+        Controller.ExitRequested += () => OnUi(() => Application.Current.Shutdown());
     }
 
     public ICommand UpdateCommand { get; }
@@ -60,13 +73,9 @@ public sealed class UpdateBannerViewModel : ObservableBase
             try
             {
                 await Task.Delay(delay ?? TimeSpan.FromSeconds(30)).ConfigureAwait(false);
-                var checker = new UpdateChecker(new UpdateOptions { AppId = AppId, CurrentVersion = CurrentVersion, PublicKeyBase64 = PublicKey });
-                var ctl = new UpdateController(checker);
+                var ctl = Controller;
                 if (!await ctl.CheckAsync().ConfigureAwait(false) || ctl.Info == null) return;
                 onAvailable?.Invoke(ctl.Info);
-                ctl.ProgressChanged += p => OnUi(() => Progress = p * 100.0);
-                ctl.StateChanged += () => OnUi(() => OnState(ctl));
-                ctl.ExitRequested += () => OnUi(() => Application.Current.Shutdown());
                 OnUi(() => Show(ctl));
             }
             catch { /* ağ yoksa sessizce geç */ }

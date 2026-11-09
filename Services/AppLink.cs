@@ -39,7 +39,7 @@ public sealed class AppLink : IAsyncDisposable
 {
     public const string AppId = "t-desktree";
     private static readonly string[] Events = ["scan.finished", "disk.low", "app.update.available"];
-    private static readonly string[] Commands = ["disk.status", "scan.start", "app.show", "app.version"];
+    private static readonly string[] Commands = ["disk.status", "scan.start", "app.show", "app.version", .. TSuite.Update.UpdateLink.Commands];
 
     private readonly Window _window;
     private readonly MainWindowViewModel _vm;
@@ -69,6 +69,7 @@ public sealed class AppLink : IAsyncDisposable
             });
             srv.OnCommand("app.version", (_, _) =>
                 Task.FromResult<JsonElement?>(LinkJson.Obj(("version", v), ("protocol", LinkProtocol.Version))));
+            TSuite.Update.UpdateLink.Register(srv, UpdateBannerViewModel.Instance.Controller);   // app.update.check / app.update.install
             srv.Start();
             _server = srv;
 
