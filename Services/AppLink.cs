@@ -128,15 +128,23 @@ public sealed class AppLink : IAsyncDisposable
     private async Task<JsonElement?> ScanStartAsync(string? path)
     {
         if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(path)) throw new ArgumentException("path geçerli bir klasör olmalı");
-        var tcs = new TaskCompletionSource<bool>();
-        Ui(() =>
+        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var disp = Application.Current?.Dispatcher;
+        if (disp == null) throw new InvalidOperationException("Arayüz hazır değil");
+        disp.BeginInvoke(() =>
         {
-            ShowWindow();
-            if (_vm.IsScanning) { tcs.SetResult(false); return; }
-            _vm.SelectedPath = path; // mevcut tarama komutu: ViewModel kendi iş parçacığı kurallarıyla başlatır
-            _ = _vm.StartScanAsync();
-            tcs.SetResult(true);
+            try
+            {
+                ShowWindow();
+                if (_vm.IsScanning) { tcs.TrySetResult(false); return; }
+                _vm.SelectedPath = path; // mevcut tarama komutu: ViewModel kendi iş parçacığı kurallarıyla başlatır
+                _ = _vm.StartScanAsync();
+                tcs.TrySetResult(true);
+            }
+            catch (Exception ex) { tcs.TrySetException(ex); }
         });
+        var done = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(15))).ConfigureAwait(false);
+        if (done != tcs.Task) throw new TimeoutException("Arayüz 15 sn içinde yanıt vermedi");
         return LinkJson.Obj(("started", await tcs.Task.ConfigureAwait(false)));
     }
 
