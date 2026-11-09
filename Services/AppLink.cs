@@ -156,7 +156,7 @@ public sealed class AppLink : IAsyncDisposable
     {
         _vm.ScanFinished -= OnScanFinished;
         _timer?.Dispose();
-        try { _registry.Remove(AppId); } catch { }
+        try { _registry.MarkStopped(AppId); } catch { }
         if (_server != null) { try { await _server.DisposeAsync().ConfigureAwait(false); } catch { } }
     }
 }
