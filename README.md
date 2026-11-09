@@ -13,3 +13,8 @@ konumunda olmalıdır (csproj: `$(MSBuildProjectDirectory)\..\..\..\..\Projects\
 
 ## Bilinen sorunlar
 - `T-DeskTree.exe --test` içinde TEST 4 başarısız ("No extensions recorded!"). Önceki sürümde de aynı; bu çalışmadan bağımsız, bilinçli olarak düzeltilmedi.
+
+## CI / Yayın
+- Kararlı sürüm için `git tag v1.2.0 && git push --tags` komutlarını kullanın.
+- Beta sürümleri `v1.2.0-beta.1` biçiminde etiketlenir ve beta kanalında yayınlanır.
+- Yayın işi, imzalama ve yayınlama öncesinde `release` ortamındaki onayı bekler.
