@@ -13,21 +13,7 @@
             </Grid.ColumnDefinitions>
 
             <StackPanel Orientation="Horizontal" Margin="12,0,0,0" VerticalAlignment="Center">
-                <Viewbox Width="22" Height="22" Stretch="Uniform" UseLayoutRounding="False" SnapsToDevicePixels="False">
-                    <Canvas Width="256" Height="256">
-                        <!-- Squircle çerçeve -->
-                        <Border Width="256" Height="256" CornerRadius="56" Background="{DynamicResource Brush.Border.Default}" />
-                        <Border Canvas.Left="3" Canvas.Top="3" Width="250" Height="250" CornerRadius="53" Background="{DynamicResource Brush.Bg.Surface}" />
-                        <!-- Treemap Veri Blokları (Dallar) -->
-                        <Border Canvas.Left="38" Canvas.Top="84" Width="64" Height="63" CornerRadius="10" Background="{DynamicResource Brush.Cat.Image}" />
-                        <Border Canvas.Left="38" Canvas.Top="155" Width="64" Height="63" CornerRadius="10" Background="{DynamicResource Brush.Cat.Video}" />
-                        <Border Canvas.Left="154" Canvas.Top="84" Width="64" Height="63" CornerRadius="10" Background="{DynamicResource Brush.Cat.Audio}" />
-                        <Border Canvas.Left="154" Canvas.Top="155" Width="64" Height="63" CornerRadius="10" Background="{DynamicResource Brush.Warning}" />
-                        <!-- T-Monogram (Gövde & Çatı) -->
-                        <Border Canvas.Left="38" Canvas.Top="38" Width="180" Height="38" CornerRadius="10" Background="{DynamicResource Brush.Accent}" />
-                        <Border Canvas.Left="110" Canvas.Top="68" Width="36" Height="150" CornerRadius="0,0,10,10" Background="{DynamicResource Brush.Accent}" />
-                    </Canvas>
-                </Viewbox>
+                <Image Source="/T-DeskTree;component/Assets/logo.png" Width="22" Height="22" AutomationProperties.Name="T-DeskTree" />
                 <TextBlock Text="T-DeskTree" Style="{StaticResource Text.BodyStrong}" Margin="10,0,0,0"
                            VerticalAlignment="Center" />
                 <TextBlock Text="Disk alanı analizi" Style="{StaticResource Text.Muted}" Margin="10,1,0,0"

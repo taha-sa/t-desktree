@@ -3,55 +3,59 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         ResizeMode="NoResize" WindowStartupLocation="CenterOwner"
-        SizeToContent="WidthAndHeight" ShowInTaskbar="False"
+        Width="472" Height="600" ShowInTaskbar="False" Icon="/T-DeskTree;component/app.ico"
         FontFamily="{DynamicResource Font.UI}" FontSize="13">
     <Grid Margin="16">
         <Border Background="{DynamicResource Brush.Bg.Elevated}"
                 BorderBrush="{DynamicResource Brush.Border.Strong}"
                 BorderThickness="1"
-                CornerRadius="{StaticResource Radius.Card}"
+                CornerRadius="16"
                 MinWidth="380" MaxWidth="440" Padding="28,24">
             <Border.Effect>
                 <DropShadowEffect Color="{DynamicResource Color.Shadow}" BlurRadius="24" ShadowDepth="6" Opacity="0.45" />
             </Border.Effect>
 
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <StackPanel>
                 <!-- Baslik Alani -->
                 <Grid Margin="0,0,0,16">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-
-                    <!-- Logo -->
-                    <Viewbox Width="34" Height="34" Stretch="Uniform" VerticalAlignment="Center" Margin="0,0,12,0">
-                        <Canvas Width="256" Height="256">
-                            <!-- Squircle çerçeve -->
-                            <Border Width="256" Height="256" CornerRadius="56" Background="{DynamicResource Brush.Border.Default}" />
-                            <Border Canvas.Left="3" Canvas.Top="3" Width="250" Height="250" CornerRadius="53" Background="{DynamicResource Brush.Bg.Surface}" />
-                            <!-- Treemap Veri Blokları (Dallar) -->
-                            <Border Canvas.Left="38" Canvas.Top="84" Width="64" Height="63" CornerRadius="10" Background="{DynamicResource Brush.Cat.Image}" />
-                            <Border Canvas.Left="38" Canvas.Top="155" Width="64" Height="63" CornerRadius="10" Background="{DynamicResource Brush.Cat.Video}" />
-                            <Border Canvas.Left="154" Canvas.Top="84" Width="64" Height="63" CornerRadius="10" Background="{DynamicResource Brush.Cat.Audio}" />
-                            <Border Canvas.Left="154" Canvas.Top="155" Width="64" Height="63" CornerRadius="10" Background="{DynamicResource Brush.Warning}" />
-                            <!-- T-Monogram (Gövde & Çatı) -->
-                            <Border Canvas.Left="38" Canvas.Top="38" Width="180" Height="38" CornerRadius="10" Background="{DynamicResource Brush.Accent}" />
-                            <Border Canvas.Left="110" Canvas.Top="68" Width="36" Height="150" CornerRadius="0,0,10,10" Background="{DynamicResource Brush.Accent}" />
-                        </Canvas>
-                    </Viewbox>
-
-                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                        <TextBlock Text="T-DeskTree" Style="{StaticResource Text.Title}" FontSize="18" />
-                        <TextBlock Text="Disk alanı analizi" Style="{StaticResource Text.Muted}" FontSize="12" Margin="0,1,0,0" />
+                    <StackPanel HorizontalAlignment="Center">
+                        <Image Source="/T-DeskTree;component/Assets/logo.png" Width="64" Height="64" AutomationProperties.Name="T-DeskTree" />
+                        <TextBlock Text="T-DeskTree" Style="{StaticResource Text.Title}" HorizontalAlignment="Center" Margin="0,8,0,0" />
+                        <TextBlock x:Name="VersionText" Style="{StaticResource Text.Caption}" HorizontalAlignment="Center" Margin="0,4,0,0" />
+                        <Border Background="{DynamicResource Brush.Success.Soft}" CornerRadius="6" Padding="8,4" HorizontalAlignment="Center" Margin="0,8,0,0">
+                            <TextBlock Text="Disk alanı analizi" Style="{StaticResource Text.Caption}" Foreground="{DynamicResource Brush.Text.Primary}" />
+                        </Border>
                     </StackPanel>
-
-                    <!-- Kapat Ikonu -->
-                    <Button Grid.Column="2" Style="{StaticResource Button.Icon}" Content="{StaticResource Icon.Close}"
+                    <Button Style="{StaticResource Button.Icon}" Content="{StaticResource Icon.Close}"
                             Width="28" Height="28" FontSize="11" Click="Close_Click" ToolTip="Kapat"
-                            AutomationProperties.Name="Kapat" VerticalAlignment="Top" Margin="8,0,-8,0" />
+                            AutomationProperties.Name="Kapat" VerticalAlignment="Top" HorizontalAlignment="Right" />
                 </Grid>
 
+                <TextBlock Text="T-Suite ailesinin parçası" Style="{StaticResource Text.Subtitle}" Margin="0,0,0,8" />
+                <ItemsControl x:Name="FamilyList" Margin="0,0,0,16">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Margin="0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="32" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Image Source="{Binding Icon}" Width="24" Height="24" AutomationProperties.Name="{Binding Name}" />
+                                <StackPanel Grid.Column="1" Margin="8,0">
+                                    <TextBlock Text="{Binding Name}" Style="{StaticResource Text.BodyStrong}" />
+                                    <TextBlock Text="{Binding Status}" Style="{StaticResource Text.Caption}" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <TextBlock Grid.Column="2" VerticalAlignment="Center" Visibility="{Binding DownloadVisibility}">
+                                    <Hyperlink NavigateUri="{Binding DownloadUrl}" RequestNavigate="Hyperlink_RequestNavigate" Foreground="{DynamicResource Brush.Accent}">
+                                        <Run Text="{Binding DownloadLabel}" />
+                                    </Hyperlink>
+                                </TextBlock>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
                 <!-- Ayirici cizgi -->
                 <Border Height="1" Background="{DynamicResource Brush.Border.Default}" Margin="0,0,0,16" />
 
@@ -94,20 +98,27 @@
                                AutomationProperties.LiveSetting="Polite" />
                 </Grid>
 
-                <CheckBox x:Name="StartWithWindowsCheckBox" Content="Windows ile ba?lat"
+                <CheckBox x:Name="StartWithWindowsCheckBox" Content="Windows ile başlat"
                           Foreground="{DynamicResource Brush.Text.Secondary}" Margin="0,0,0,16"
                           Click="StartWithWindows_Click" />
 
-                <CheckBox x:Name="AutoReportsCheckBox" Content="Hata raporlar?n? otomatik haz?rla"
+                <CheckBox x:Name="AutoReportsCheckBox" Content="Hata raporlarını otomatik hazırla"
                           Foreground="{DynamicResource Brush.Text.Secondary}" Margin="0,0,0,12"
                           Click="AutoReports_Click" />
-                <Button Content="Hata raporu g?nder?" Style="{StaticResource Button.Secondary}"
+                <Button Content="Hata raporu gönder" Style="{StaticResource Button.Secondary}"
                         HorizontalAlignment="Left" Margin="0,0,0,16" Click="Report_Click" />
 
+                <TextBlock Style="{StaticResource Text.Caption}" TextWrapping="Wrap" Margin="0,0,0,12"
+                           Text="Disk analizi yerel olarak yapılır. Hata raporunu göndermeden önce inceleyebilirsiniz; gönderim GitHub üzerinden sizin onayınızla yapılır." />
+                <TextBlock Style="{StaticResource Text.Caption}" Margin="0,0,0,12">
+                    <Hyperlink NavigateUri="https://github.com/taha-sa/t-desktree" RequestNavigate="Hyperlink_RequestNavigate" Foreground="{DynamicResource Brush.Accent}">Kaynak ve lisans bilgileri</Hyperlink>
+                </TextBlock>
+                <Button Content="Sistem tanılamasını kopyala" Style="{StaticResource Button.Secondary}" Click="CopyDiagnostics_Click" HorizontalAlignment="Left" Margin="0,0,0,12" />
                 <!-- Kapat Butonu -->
-                <Button Content="Kapat" Style="{StaticResource Button.Secondary}"
+                <Button Content="Kapat" Style="{StaticResource Button.Primary}"
                         MinWidth="96" HorizontalAlignment="Right" IsCancel="True" Click="Close_Click" />
             </StackPanel>
+            </ScrollViewer>
         </Border>
     </Grid>
 </Window>

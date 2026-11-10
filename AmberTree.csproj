@@ -17,6 +17,7 @@
   <ItemGroup>
     <Resource Include="app.ico" />
     <Resource Include="Assets\logo.png" />
+    <Resource Include="Assets\Family\*.png" />
   </ItemGroup>
 
   <!-- T-Suite SDK: kardes depo C:\Users\hp\Projects\t-suite (bkz. README.md). Baska yer icin: -p:TSuiteRoot=... -->

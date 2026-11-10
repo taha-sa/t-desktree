@@ -15,16 +15,16 @@ public partial class ConfirmDialog : Window
             ConfirmButton.Style = (Style)FindResource("Button.Danger");
             ConfirmButton.Content = "Sil";
             IconGlyph.Text = (string)FindResource("Icon.Delete");
-            IconGlyph.Foreground = (System.Windows.Media.Brush)FindResource("Brush.Danger");
-            IconBorder.Background = (System.Windows.Media.Brush)FindResource("Brush.Danger.Soft");
+            IconGlyph.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, "Brush.Danger");
+            IconBorder.SetResourceReference(System.Windows.Controls.Border.BackgroundProperty, "Brush.Danger.Soft");
         }
         else
         {
             ConfirmButton.Style = (Style)FindResource("Button.Primary");
             ConfirmButton.Content = "Evet";
             IconGlyph.Text = (string)FindResource("Icon.Info");
-            IconGlyph.Foreground = (System.Windows.Media.Brush)FindResource("Brush.Accent");
-            IconBorder.Background = (System.Windows.Media.Brush)FindResource("Brush.Accent.Soft");
+            IconGlyph.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, "Brush.Accent");
+            IconBorder.SetResourceReference(System.Windows.Controls.Border.BackgroundProperty, "Brush.Accent.Soft");
         }
 
         // Parent window varsa CenterOwner ile ortalayalim
