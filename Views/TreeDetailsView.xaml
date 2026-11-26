@@ -1,7 +1,7 @@
 <UserControl x:Class="AmberTree.Views.TreeDetailsView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:loc="clr-namespace:AmberTree.Localization"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:views="clr-namespace:AmberTree.Views"
              xmlns:models="clr-namespace:AmberTree.Models"
              Focusable="False">
@@ -21,13 +21,45 @@
     <UserControl.Resources>
         <views:TreeColumns x:Key="Cols" />
 
-        <Style x:Key="Head.Text" TargetType="TextBlock" BasedOn="{StaticResource Text.Caption}">
+        <Style x:Key="Head.Button" TargetType="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Secondary}" />
+            <Setter Property="FontFamily" Value="{DynamicResource Font.UI}" />
+            <Setter Property="FontSize" Value="12" />
             <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="VerticalAlignment" Value="Center" />
-            <Setter Property="Margin" Value="8,0" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Padding" Value="8,0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush.Bg.Elevated}" />
+                                <Setter Property="Foreground" Value="{DynamicResource Brush.Text.Primary}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Brush.Bg.Subtle}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
-        <Style x:Key="Head.Right" TargetType="TextBlock" BasedOn="{StaticResource Head.Text}">
-            <Setter Property="HorizontalAlignment" Value="Right" />
+        <Style x:Key="Head.ButtonRight" TargetType="Button" BasedOn="{StaticResource Head.Button}">
+            <Setter Property="HorizontalContentAlignment" Value="Right" />
+        </Style>
+        <Style x:Key="Head.SortArrow" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource Brush.Accent}" />
+            <Setter Property="FontSize" Value="10" />
+            <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
         <Style x:Key="Cell.Num" TargetType="TextBlock" BasedOn="{StaticResource Text.Mono}">
             <Setter Property="HorizontalAlignment" Value="Right" />
@@ -121,7 +153,7 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- Baslik: satirlarla ayni kolon genislikleri; sinirlar surukleyerek degisir -->
+        <!-- Tiklanabilir klasik siralama basliklari + suruklenebilir kolon sinirlari -->
         <Border Grid.Row="0" Background="{DynamicResource Brush.Bg.Surface}"
                 BorderBrush="{DynamicResource Brush.Border.Default}" BorderThickness="0,0,0,1"
                 Padding="8,0,12,0" Height="34">
@@ -136,14 +168,63 @@
                     <ColumnDefinition Width="{Binding Modified, Source={StaticResource Cols}}" />
                     <ColumnDefinition Width="{Binding Attr, Source={StaticResource Cols}}" />
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="{loc:Text Name}" Style="{StaticResource Head.Text}" Margin="50,0,8,0" />
-                <TextBlock Grid.Column="1" Text="{loc:Text Size}" Style="{StaticResource Head.Right}" />
-                <TextBlock Grid.Column="2" Text="{loc:Text OnDisk}" Style="{StaticResource Head.Right}" ToolTip="{loc:Text AllocatedHelp}" />
-                <TextBlock Grid.Column="3" Text="{loc:Text ParentPercent}" Style="{StaticResource Head.Text}" />
-                <TextBlock Grid.Column="4" Text="{loc:Text File}" Style="{StaticResource Head.Right}" />
-                <TextBlock Grid.Column="5" Text="{loc:Text FolderDuplicate}" Style="{StaticResource Head.Right}" />
-                <TextBlock Grid.Column="6" Text="{loc:Text LastModified}" Style="{StaticResource Head.Right}" />
-                <TextBlock Grid.Column="7" Text="{loc:Text Attributes}" Style="{StaticResource Head.Right}" />
+
+                <Button Style="{StaticResource Head.Button}" Padding="50,0,8,0"
+                        Command="{Binding SortByColumnCommand}" CommandParameter="Name">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{loc:Text Name}" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding NameSortIndicator}" Style="{StaticResource Head.SortArrow}" />
+                    </StackPanel>
+                </Button>
+                <Button Grid.Column="1" Style="{StaticResource Head.ButtonRight}"
+                        Command="{Binding SortByColumnCommand}" CommandParameter="Size">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{loc:Text Size}" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding SizeSortIndicator}" Style="{StaticResource Head.SortArrow}" />
+                    </StackPanel>
+                </Button>
+                <Button Grid.Column="2" Style="{StaticResource Head.ButtonRight}" ToolTip="{loc:Text AllocatedHelp}"
+                        Command="{Binding SortByColumnCommand}" CommandParameter="Allocated">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{loc:Text OnDisk}" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding AllocatedSortIndicator}" Style="{StaticResource Head.SortArrow}" />
+                    </StackPanel>
+                </Button>
+                <Button Grid.Column="3" Style="{StaticResource Head.Button}"
+                        Command="{Binding SortByColumnCommand}" CommandParameter="Percent">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{loc:Text ParentPercent}" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding PercentSortIndicator}" Style="{StaticResource Head.SortArrow}" />
+                    </StackPanel>
+                </Button>
+                <Button Grid.Column="4" Style="{StaticResource Head.ButtonRight}"
+                        Command="{Binding SortByColumnCommand}" CommandParameter="Files">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{loc:Text File}" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding FilesSortIndicator}" Style="{StaticResource Head.SortArrow}" />
+                    </StackPanel>
+                </Button>
+                <Button Grid.Column="5" Style="{StaticResource Head.ButtonRight}"
+                        Command="{Binding SortByColumnCommand}" CommandParameter="Folders">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{loc:Text FolderDuplicate}" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding FoldersSortIndicator}" Style="{StaticResource Head.SortArrow}" />
+                    </StackPanel>
+                </Button>
+                <Button Grid.Column="6" Style="{StaticResource Head.ButtonRight}"
+                        Command="{Binding SortByColumnCommand}" CommandParameter="Modified">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{loc:Text LastModified}" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding ModifiedSortIndicator}" Style="{StaticResource Head.SortArrow}" />
+                    </StackPanel>
+                </Button>
+                <Button Grid.Column="7" Style="{StaticResource Head.ButtonRight}"
+                        Command="{Binding SortByColumnCommand}" CommandParameter="Attributes">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{loc:Text Attributes}" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding AttrSortIndicator}" Style="{StaticResource Head.SortArrow}" />
+                    </StackPanel>
+                </Button>
 
                 <Thumb Grid.Column="1" Tag="Size" Style="{StaticResource Splitter.Handle}" DragDelta="Splitter_DragDelta" />
                 <Thumb Grid.Column="2" Tag="Allocated" Style="{StaticResource Splitter.Handle}" DragDelta="Splitter_DragDelta" />

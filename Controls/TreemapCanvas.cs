@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using AmberTree.Models;
 using AmberTree.Services;
 using AmberTree.ViewModels;
@@ -14,13 +15,19 @@ namespace AmberTree.Controls;
 
 /// <summary>
 /// Treemap cizimi. Renkler tema kaynaklarindan (Brush/Color.Cat.*, Bg.*) okunur; tema ya da birim degisince yeniden cizilir.
-/// Gezinme VM komutlariyla yapilir (ItemActivatedCommand), tuvalin kendi gezinme durumu yoktur.
+/// Secim degisiminde tum tuvali yeniden kurmadan O(1) kenarlik gunceller; tum fircalar dondurulmus (Frozen) olarak uretilir.
 /// </summary>
 public class TreemapCanvas : Canvas
 {
+    private const int MaxRenderedTiles = 600;
+
     private FsItem? _currentItem;
     private FsItem? _selected;
+    private Border? _selectedBorder;
+    private Brush? _edgeBrushCache;
+    private Brush? _accentBrushCache;
     private MainWindowViewModel? _vm;
+    private bool _resizeQueued;
     private readonly Dictionary<FsItem, (long size, FileCategory cat)> _dominant = new();
 
     public event Action<FsItem>? ItemSelected;
@@ -63,6 +70,7 @@ public class TreemapCanvas : Canvas
         {
             canvas._currentItem = e.NewValue as FsItem;
             canvas._selected = null;
+            canvas._selectedBorder = null;
             canvas._dominant.Clear();
             canvas.RebuildTreemap();
         }
@@ -74,7 +82,7 @@ public class TreemapCanvas : Canvas
         Focusable = true;
         FocusVisualStyle = null;
         SetResourceReference(BackgroundProperty, "Brush.Bg.Base");
-        SizeChanged += (_, _) => RebuildTreemap();
+        SizeChanged += (_, _) => ScheduleRebuild();
         Loaded += (_, _) =>
         {
             ThemeService.Current.ThemeChanged -= OnThemeChanged;
@@ -93,14 +101,25 @@ public class TreemapCanvas : Canvas
         };
     }
 
+    private void ScheduleRebuild()
+    {
+        if (_resizeQueued) return;
+        _resizeQueued = true;
+        Dispatcher.BeginInvoke(DispatcherPriority.Render, new Action(() =>
+        {
+            _resizeQueued = false;
+            RebuildTreemap();
+        }));
+    }
+
     private void Detach()
     {
         if (_vm != null) _vm.UnitChanged -= OnUnitChanged;
         _vm = null;
     }
 
-    private void OnThemeChanged(object? sender, EventArgs e) => Dispatcher.BeginInvoke(new Action(RebuildTreemap));
-    private void OnUnitChanged(object? sender, EventArgs e) => Dispatcher.BeginInvoke(new Action(RebuildTreemap));
+    private void OnThemeChanged(object? sender, EventArgs e) => ScheduleRebuild();
+    private void OnUnitChanged(object? sender, EventArgs e) => ScheduleRebuild();
 
     public FsItem? CurrentItem => _currentItem;
 
@@ -109,13 +128,20 @@ public class TreemapCanvas : Canvas
     private Color ResColor(string key, Color fallback)
         => TryFindResource(key) is Color c ? c : fallback;
 
+    private static SolidColorBrush FrozenBrush(Color c)
+    {
+        var b = new SolidColorBrush(c);
+        b.Freeze();
+        return b;
+    }
+
     private static Color Mix(Color a, Color b, double t)
         => Color.FromRgb(
             (byte)(a.R + (b.R - a.R) * t),
             (byte)(a.G + (b.G - a.G) * t),
             (byte)(a.B + (b.B - a.B) * t));
 
-    private static double Luminance(Color c)
+    private static double ExactLuminance(Color c)
     {
         static double L(byte v)
         {
@@ -137,8 +163,11 @@ public class TreemapCanvas : Canvas
         while (stack.Count > 0)
         {
             var n = stack.Pop();
-            foreach (var c in n.Children)
+            if (!n.HasChildren) continue;
+            var col = n.Children;
+            for (int i = 0; i < col.Count; i++)
             {
+                var c = col[i];
                 if (c.IsDirectory) stack.Push(c);
                 else sums[(int)c.Category] += c.Size;
             }
@@ -150,48 +179,122 @@ public class TreemapCanvas : Canvas
         return cat;
     }
 
+    private sealed class PaletteCache
+    {
+        public required Color Surface { get; init; }
+        public required Color TextPrimary { get; init; }
+        public required Brush EdgeBrush { get; init; }
+        public required Brush AccentBrush { get; init; }
+        public required Brush DarkText { get; init; }
+        public required Brush LightText { get; init; }
+        public required string FolderGlyph { get; init; }
+        public required FontFamily? IconFont { get; init; }
+        public required FontFamily? UiFont { get; init; }
+        public required FontFamily? MonoFont { get; init; }
+        public Dictionary<FileCategory, Color> CatColors { get; } = new();
+        public Dictionary<(FileCategory, bool), (Brush fill, Brush hover, Brush fg)> TileBrushes { get; } = new();
+    }
+
+    private PaletteCache BuildPalette()
+    {
+        var baseColor = ResColor("Color.Bg.Base", Colors.Black);
+        var surface = ResColor("Color.Bg.Surface", Colors.Gray);
+        var textPrimary = ResColor("Color.Text.Primary", Colors.White);
+        var edge = FrozenBrush(baseColor);
+        var accent = FrozenBrush(ResColor("Color.Accent", Colors.Teal));
+        _edgeBrushCache = edge;
+        _accentBrushCache = accent;
+
+        var pal = new PaletteCache
+        {
+            Surface = surface,
+            TextPrimary = textPrimary,
+            EdgeBrush = edge,
+            AccentBrush = accent,
+            DarkText = FrozenBrush(Colors.Black),
+            LightText = FrozenBrush(Colors.White),
+            FolderGlyph = (string)(TryFindResource("Icon.Folder") ?? string.Empty),
+            IconFont = TryFindResource("Font.Icons") as FontFamily,
+            UiFont = TryFindResource("Font.UI") as FontFamily,
+            MonoFont = TryFindResource("Font.Mono") as FontFamily,
+        };
+        foreach (FileCategory cat in Enum.GetValues<FileCategory>())
+        {
+            pal.CatColors[cat] = ResColor(FileCategoryMap.ColorKey(cat), Colors.Gray);
+        }
+        return pal;
+    }
+
+    private (Brush fill, Brush hover, Brush fg) GetTileBrushes(PaletteCache pal, FileCategory cat, bool isDir)
+    {
+        var key = (cat, isDir);
+        if (pal.TileBrushes.TryGetValue(key, out var cached)) return cached;
+
+        var catColor = pal.CatColors[cat];
+        var fill = isDir ? Mix(pal.Surface, catColor, 0.55) : catColor;
+        var hover = Mix(fill, pal.TextPrimary, 0.18);
+        var fg = ExactLuminance(fill) > 0.32 ? pal.DarkText : pal.LightText;
+        var entry = ((Brush)FrozenBrush(fill), (Brush)FrozenBrush(hover), fg);
+        pal.TileBrushes[key] = entry;
+        return entry;
+    }
+
+    private void SelectTile(FsItem item, Border border)
+    {
+        if (_selectedBorder != null && !ReferenceEquals(_selectedBorder, border))
+        {
+            _selectedBorder.BorderThickness = new Thickness(1);
+            _selectedBorder.BorderBrush = _edgeBrushCache ?? Brushes.Black;
+        }
+        _selected = item;
+        _selectedBorder = border;
+        border.BorderThickness = new Thickness(2);
+        border.BorderBrush = _accentBrushCache ?? Brushes.Teal;
+    }
+
     // ---------------------------------------------------------------- cizim
 
     public void RebuildTreemap()
     {
         Children.Clear();
+        _selectedBorder = null;
 
         if (_currentItem == null || ActualWidth < 10 || ActualHeight < 10) return;
 
-        var children = _currentItem.Children.Where(c => c.Size > 0).OrderByDescending(c => c.Size).ToList();
+        var pal = BuildPalette();
+
+        var children = _currentItem.HasChildren
+            ? _currentItem.Children.Where(c => c.Size > 0).OrderByDescending(c => c.Size).ToList()
+            : new List<FsItem>();
+
         if (children.Count == 0)
         {
-            DrawTile(_currentItem, new Rect(4, 4, ActualWidth - 8, ActualHeight - 8));
+            DrawTile(_currentItem, new Rect(4, 4, ActualWidth - 8, ActualHeight - 8), pal);
             return;
         }
 
-        long totalSize = children.Sum(c => c.Size);
+        long totalSize = 0;
+        for (int i = 0; i < children.Count; i++) totalSize += children[i].Size;
         if (totalSize <= 0) return;
 
         var rects = Squarify(children, new Rect(2, 2, ActualWidth - 4, ActualHeight - 4), totalSize);
-        foreach (var (item, rect) in rects) DrawTile(item, rect);
+        int drawn = 0;
+        for (int i = 0; i < rects.Count && drawn < MaxRenderedTiles; i++)
+        {
+            var (item, rect) = rects[i];
+            if (rect.Width < 3 || rect.Height < 3) continue;
+            DrawTile(item, rect, pal);
+            drawn++;
+        }
     }
 
-    private void DrawTile(FsItem item, Rect rect)
+    private void DrawTile(FsItem item, Rect rect, PaletteCache pal)
     {
         if (rect.Width < 3 || rect.Height < 3) return;
 
-        var baseColor = ResColor("Color.Bg.Base", Colors.Black);
-        var surface = ResColor("Color.Bg.Surface", Colors.Gray);
         var cat = DominantCategory(item);
-        var catColor = ResColor(FileCategoryMap.ColorKey(cat), Colors.Gray);
-
-        // Klasor karolari daha sonuk (kategori rengi zemine karisir), dosyalar tam renk.
-        var fill = item.IsDirectory ? Mix(surface, catColor, 0.55) : catColor;
-        var hoverFill = Mix(fill, ResColor("Color.Text.Primary", Colors.White), 0.18);
-        var fg = Luminance(fill) > 0.32 ? Colors.Black : Colors.White;
+        var (fillBrush, hoverBrush, textBrush) = GetTileBrushes(pal, cat, item.IsDirectory);
         bool selected = ReferenceEquals(item, _selected);
-
-        var fillBrush = new SolidColorBrush(fill);
-        var hoverBrush = new SolidColorBrush(hoverFill);
-        var edgeBrush = new SolidColorBrush(baseColor);
-        var accentBrush = new SolidColorBrush(ResColor("Color.Accent", Colors.Teal));
-        var textBrush = new SolidColorBrush(fg);
 
         var border = new Border
         {
@@ -199,7 +302,7 @@ public class TreemapCanvas : Canvas
             Height = Math.Max(1, rect.Height - 2),
             Margin = new Thickness(1),
             BorderThickness = new Thickness(selected ? 2 : 1),
-            BorderBrush = selected ? accentBrush : edgeBrush,
+            BorderBrush = selected ? pal.AccentBrush : pal.EdgeBrush,
             Background = fillBrush,
             CornerRadius = new CornerRadius(4),
             ClipToBounds = true,
@@ -208,6 +311,7 @@ public class TreemapCanvas : Canvas
             ContextMenu = TileContextMenu,
             ToolTip = Strings.Format(Strings.TreemapTooltip, item.Name, item.SizeDisplay, item.AllocatedSizeDisplay, item.FileCount, item.FolderCount, item.FullPath)
         };
+        if (selected) _selectedBorder = border;
 
         border.MouseEnter += (_, _) =>
         {
@@ -217,7 +321,7 @@ public class TreemapCanvas : Canvas
         border.MouseLeave += (_, _) =>
         {
             border.Background = fillBrush;
-            border.BorderBrush = ReferenceEquals(item, _selected) ? accentBrush : edgeBrush;
+            border.BorderBrush = ReferenceEquals(item, _selected) ? pal.AccentBrush : pal.EdgeBrush;
         };
 
         border.MouseLeftButtonDown += (_, e) =>
@@ -225,11 +329,10 @@ public class TreemapCanvas : Canvas
             Focus();
             if (e.ClickCount == 1)
             {
-                _selected = item;
+                SelectTile(item, border);
                 ItemSelected?.Invoke(item);
-                RebuildTreemap();
             }
-            else if (e.ClickCount == 2 && item.IsDirectory && item.Children.Count > 0)
+            else if (e.ClickCount == 2 && item.IsDirectory && item.HasChildren)
             {
                 var cmd = ItemActivatedCommand;
                 if (cmd != null && cmd.CanExecute(item)) cmd.Execute(item);
@@ -240,7 +343,7 @@ public class TreemapCanvas : Canvas
         {
             if (!ReferenceEquals(item, _selected))
             {
-                _selected = item;
+                SelectTile(item, border);
                 ItemSelected?.Invoke(item);
             }
         };
@@ -252,14 +355,22 @@ public class TreemapCanvas : Canvas
                 Margin = new Thickness(6, 4, 6, 4),
                 VerticalAlignment = VerticalAlignment.Top,
                 HorizontalAlignment = HorizontalAlignment.Left,
-                IsHitTestVisible = false
+                IsHitTestVisible = false,
+                Width = Math.Max(10, rect.Width - 14)
             };
 
             var nameRow = new DockPanel { LastChildFill = true };
             if (item.IsDirectory)
             {
-                var glyph = new TextBlock { Text = (string)(TryFindResource("Icon.Folder") ?? string.Empty), FontSize = 12, Foreground = textBrush, Margin = new Thickness(0, 1, 6, 0), VerticalAlignment = VerticalAlignment.Center };
-                glyph.SetResourceReference(TextBlock.FontFamilyProperty, "Font.Icons");
+                var glyph = new TextBlock
+                {
+                    Text = pal.FolderGlyph,
+                    FontSize = 12,
+                    Foreground = textBrush,
+                    Margin = new Thickness(0, 1, 6, 0),
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                if (pal.IconFont != null) glyph.FontFamily = pal.IconFont;
                 DockPanel.SetDock(glyph, Dock.Left);
                 nameRow.Children.Add(glyph);
             }
@@ -271,19 +382,18 @@ public class TreemapCanvas : Canvas
                 FontSize = 12,
                 TextTrimming = TextTrimming.CharacterEllipsis
             };
-            nameText.SetResourceReference(TextBlock.FontFamilyProperty, "Font.UI");
+            if (pal.UiFont != null) nameText.FontFamily = pal.UiFont;
             nameRow.Children.Add(nameText);
             stack.Children.Add(nameRow);
-            stack.Width = Math.Max(10, rect.Width - 14);
 
             var sizeText = new TextBlock { Text = item.SizeDisplay, Foreground = textBrush, Opacity = 0.85, FontSize = 11 };
-            sizeText.SetResourceReference(TextBlock.FontFamilyProperty, "Font.Mono");
+            if (pal.MonoFont != null) sizeText.FontFamily = pal.MonoFont;
             stack.Children.Add(sizeText);
 
             if (rect.Height > 62)
             {
                 var pctText = new TextBlock { Text = $"{item.PercentOfParent:F1}%", Foreground = textBrush, Opacity = 0.7, FontSize = 11 };
-                pctText.SetResourceReference(TextBlock.FontFamilyProperty, "Font.Mono");
+                if (pal.MonoFont != null) pctText.FontFamily = pal.MonoFont;
                 stack.Children.Add(pctText);
             }
 
@@ -297,14 +407,18 @@ public class TreemapCanvas : Canvas
 
     private List<(FsItem item, Rect rect)> Squarify(List<FsItem> items, Rect bounds, long totalSize)
     {
-        var result = new List<(FsItem, Rect)>();
+        var result = new List<(FsItem, Rect)>(Math.Min(items.Count, MaxRenderedTiles));
         if (items.Count == 0 || bounds.Width <= 0 || bounds.Height <= 0) return result;
 
         double totalArea = bounds.Width * bounds.Height;
-        var areas = items.Select(it => Math.Max(0.001, (double)it.Size / totalSize * totalArea)).ToList();
+        var areas = new double[items.Count];
+        for (int i = 0; i < items.Count; i++)
+        {
+            areas[i] = Math.Max(0.001, (double)items[i].Size / totalSize * totalArea);
+        }
 
         int idx = 0;
-        while (idx < items.Count && bounds.Width > 0 && bounds.Height > 0)
+        while (idx < items.Count && bounds.Width > 0 && bounds.Height > 0 && result.Count < MaxRenderedTiles)
         {
             int remaining = items.Count - idx;
             if (remaining == 1)
@@ -335,7 +449,7 @@ public class TreemapCanvas : Canvas
             if (rowBreadth <= 0 || double.IsNaN(rowBreadth) || double.IsInfinity(rowBreadth)) break;
 
             double offset = 0;
-            for (int i = 0; i < rowCount; i++)
+            for (int i = 0; i < rowCount && result.Count < MaxRenderedTiles; i++)
             {
                 double itemLength = areas[idx + i] / rowBreadth;
                 if (itemLength < 0 || double.IsNaN(itemLength) || double.IsInfinity(itemLength)) continue;
@@ -356,7 +470,7 @@ public class TreemapCanvas : Canvas
         return result;
     }
 
-    private static double WorstAspect(List<double> areas, int start, int count, double length)
+    private static double WorstAspect(double[] areas, int start, int count, double length)
     {
         if (count <= 0 || length <= 0) return double.MaxValue;
         double sum = 0;

@@ -133,6 +133,20 @@ public static class NativeFileSystem
         return ((size + clusterSize - 1) / clusterSize) * clusterSize;
     }
 
+    public static string ToSearchPattern(string directoryPath)
+    {
+        string trimmed = directoryPath.TrimEnd('\\', '/');
+        string basePath = trimmed.Length == 2 && trimmed[1] == ':' ? trimmed + "\\" : trimmed;
+        string pattern = basePath.EndsWith('\\') ? basePath + "*" : basePath + "\\*";
+        if (pattern.Length >= 240 && !pattern.StartsWith(@"\\?\", StringComparison.Ordinal))
+        {
+            if (pattern.StartsWith(@"\\", StringComparison.Ordinal))
+                return @"\\?\UNC\" + pattern.Substring(2);
+            return @"\\?\" + pattern;
+        }
+        return pattern;
+    }
+
     public static DateTime FileTimeToDateTime(System.Runtime.InteropServices.ComTypes.FILETIME ft)
     {
         long fileTime = ((long)ft.dwHighDateTime << 32) | (uint)ft.dwLowDateTime;

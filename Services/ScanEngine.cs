@@ -1,9 +1,7 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using AmberTree.Models;
@@ -16,20 +14,22 @@ public class ScanEngine
     private long _filesScanned;
     private long _foldersScanned;
     private long _bytesScanned;
-    private DateTime _lastProgressReport = DateTime.MinValue;
+    private long _lastProgressMs;
 
     public event Action<ScanProgress>? ProgressChanged;
 
-    public async Task<ScanResult> ScanAsync(string targetPath, CancellationToken cancellationToken, FsItem? existingRoot = null)
+    public async Task<ScanResult> ScanAsync(
+        string targetPath,
+        CancellationToken cancellationToken,
+        FsItem? existingRoot = null,
+        TreeSortColumn sortColumn = TreeSortColumn.Size,
+        bool sortAscending = false)
     {
         _stopwatch.Restart();
         _filesScanned = 0;
         _foldersScanned = 0;
         _bytesScanned = 0;
-        _lastProgressReport = DateTime.MinValue;
-
-        var topFilesQueue = new PriorityQueue<TopFileItem, long>();
-        var topFilesLock = new object();
+        _lastProgressMs = 0;
 
         uint clusterSize = NativeFileSystem.GetClusterSize(targetPath);
 
@@ -46,11 +46,14 @@ public class ScanEngine
             IsExpanded = true
         };
 
+        int maxWorkers = Math.Clamp(Environment.ProcessorCount, 2, 8);
+        List<FsItem> rootChildren = new();
+
         try
         {
             await Task.Run(() =>
             {
-                ScanNode(root, clusterSize, topFilesQueue, topFilesLock, cancellationToken);
+                rootChildren = ScanFolder(root, clusterSize, depth: 0, maxWorkers, cancellationToken);
             }, cancellationToken);
         }
         catch (OperationCanceledException)
@@ -58,34 +61,15 @@ public class ScanEngine
             // İptal edilse bile mevcut taranan kısmı sıralayıp yüzdeleri hesapla
         }
 
+        FinalizeTree(root, rootChildren, root.Size, sortColumn, sortAscending);
         _stopwatch.Stop();
-
-        CalculatePercentagesAndSort(root, root.Size);
-
-        long totalSize = root.Size;
-        var extList = new List<ExtensionStat>();
-
-        // Build Top 100 Largest Files
-        var topList = new List<TopFileItem>(topFilesQueue.Count);
-        while (topFilesQueue.Count > 0)
-        {
-            topList.Add(topFilesQueue.Dequeue());
-        }
-        topList.Reverse();
-        for (int idx = 0; idx < topList.Count; idx++)
-        {
-            topList[idx].Rank = idx + 1;
-            topList[idx].PercentOfTotal = totalSize > 0 ? (double)topList[idx].Size / totalSize * 100.0 : 0.0;
-        }
-
-        var ageList = new List<AgeDistributionItem>();
 
         return new ScanResult
         {
             Root = root,
-            Extensions = extList,
-            TopFiles = topList,
-            AgeDistribution = ageList,
+            Extensions = new List<ExtensionStat>(),
+            TopFiles = new List<TopFileItem>(),
+            AgeDistribution = new List<AgeDistributionItem>(),
             Elapsed = _stopwatch.Elapsed,
             TotalFiles = _filesScanned,
             TotalFolders = _foldersScanned,
@@ -95,127 +79,220 @@ public class ScanEngine
         };
     }
 
-    private void ScanNode(
-        FsItem folder,
-        uint clusterSize,
-        PriorityQueue<TopFileItem, long> topFilesQueue,
-        object topFilesLock,
-        CancellationToken ct)
+    private List<FsItem> ScanFolder(FsItem folder, uint clusterSize, int depth, int maxWorkers, CancellationToken ct)
     {
-        if (ct.IsCancellationRequested) return;
+        var items = new List<FsItem>();
+        if (ct.IsCancellationRequested) return items;
 
         Interlocked.Increment(ref _foldersScanned);
         ReportProgressThrottled(folder.FullPath);
 
-        // Ensure direct children of this folder are enumerated
-        folder.EnsureDirectChildrenLoaded();
+        List<FsItem>? subFolders = null;
+        long directBytes = 0;
+        long directAllocated = 0;
+        long directFiles = 0;
 
-        List<FsItem> subFolders;
-        lock (folder.SyncLock)
+        try
         {
-            subFolders = folder.Children.Where(c => c.IsDirectory).ToList();
+            string searchPattern = NativeFileSystem.ToSearchPattern(folder.FullPath);
+            IntPtr hFind = NativeFileSystem.FindFirstFileEx(
+                searchPattern,
+                1, // FindExInfoBasic
+                out var findData,
+                0,
+                IntPtr.Zero,
+                2); // FIND_FIRST_EX_LARGE_FETCH
 
-            foreach (var childFile in folder.Children.Where(c => !c.IsDirectory))
+            if (hFind != IntPtr.Zero && hFind.ToInt64() != -1)
             {
-                folder.Size += childFile.Size;
-                folder.AllocatedSize += childFile.AllocatedSize;
-                folder.FileCount += 1;
-
-                Interlocked.Increment(ref _filesScanned);
-                Interlocked.Add(ref _bytesScanned, childFile.Size);
-
-                // Track Top 100 Largest Files (min-heap ile sabit 100 elemanli, boyut kısıtlamasız)
-                lock (topFilesLock)
+                try
                 {
-                    if (topFilesQueue.Count < 100)
+                    do
                     {
-                        topFilesQueue.Enqueue(new TopFileItem
+                        if (ct.IsCancellationRequested) break;
+                        string name = findData.cFileName;
+                        if (name == "." || name == "..") continue;
+
+                        var attrs = (FileAttributes)findData.dwFileAttributes;
+                        bool isDir = (attrs & FileAttributes.Directory) != 0;
+                        string childPath = Path.Combine(folder.FullPath, name);
+                        DateTime modified = NativeFileSystem.FileTimeToDateTime(findData.ftLastWriteTime);
+
+                        if (isDir)
                         {
-                            Name = childFile.Name,
-                            DirectoryPath = folder.FullPath,
-                            FullPath = childFile.FullPath,
-                            Extension = Path.GetExtension(childFile.Name),
-                            Size = childFile.Size,
-                            AllocatedSize = childFile.AllocatedSize,
-                            LastModified = childFile.LastModified
-                        }, childFile.Size);
-                    }
-                    else if (childFile.Size > topFilesQueue.Peek().Size)
-                    {
-                        topFilesQueue.Dequeue();
-                        topFilesQueue.Enqueue(new TopFileItem
+                            var dirNode = new FsItem
+                            {
+                                Name = name,
+                                FullPath = childPath,
+                                IsDirectory = true,
+                                Attributes = attrs,
+                                LastModified = modified,
+                                Parent = folder
+                            };
+                            items.Add(dirNode);
+                            if ((attrs & FileAttributes.ReparsePoint) == 0)
+                            {
+                                subFolders ??= new List<FsItem>();
+                                subFolders.Add(dirNode);
+                            }
+                        }
+                        else
                         {
-                            Name = childFile.Name,
-                            DirectoryPath = folder.FullPath,
-                            FullPath = childFile.FullPath,
-                            Extension = Path.GetExtension(childFile.Name),
-                            Size = childFile.Size,
-                            AllocatedSize = childFile.AllocatedSize,
-                            LastModified = childFile.LastModified
-                        }, childFile.Size);
-                    }
+                            long fileSize = ((long)findData.nFileSizeHigh << 32) | (uint)findData.nFileSizeLow;
+                            long allocated = NativeFileSystem.AlignToCluster(fileSize, clusterSize);
+                            items.Add(new FsItem
+                            {
+                                Name = name,
+                                FullPath = childPath,
+                                IsDirectory = false,
+                                Size = fileSize,
+                                AllocatedSize = allocated,
+                                Attributes = attrs,
+                                LastModified = modified,
+                                Parent = folder,
+                                FileCount = 1,
+                                FolderCount = 0
+                            });
+                            directBytes += fileSize;
+                            directAllocated += allocated;
+                            directFiles++;
+                        }
+                    } while (NativeFileSystem.FindNextFile(hFind, out findData));
                 }
-
-                if ((_filesScanned & 255) == 0)
+                finally
                 {
-                    ReportProgressThrottled(childFile.FullPath);
+                    NativeFileSystem.FindClose(hFind);
+                }
+            }
+        }
+        catch
+        {
+            // Erişim reddedildi veya okunamayan dizin
+        }
+
+        if (directFiles > 0)
+        {
+            Interlocked.Add(ref _filesScanned, directFiles);
+            Interlocked.Add(ref _bytesScanned, directBytes);
+        }
+
+        long totalSize = directBytes;
+        long totalAllocated = directAllocated;
+        long totalFiles = directFiles;
+        long totalFolders = 0;
+
+        if (subFolders != null && subFolders.Count > 0 && !ct.IsCancellationRequested)
+        {
+            // İlk 2 derinlikte SSD/NVMe I/O paralelliği: alt ağaçları eşzamanlı tara
+            if (depth < 2 && subFolders.Count > 1)
+            {
+                var childLists = new List<FsItem>[subFolders.Count];
+                var opts = new ParallelOptions { MaxDegreeOfParallelism = maxWorkers };
+                Parallel.For(0, subFolders.Count, opts, i =>
+                {
+                    if (ct.IsCancellationRequested) return;
+                    var sub = subFolders[i];
+                    childLists[i] = ScanFolder(sub, clusterSize, depth + 1, maxWorkers, ct);
+                });
+
+                for (int i = 0; i < subFolders.Count; i++)
+                {
+                    var sub = subFolders[i];
+                    if (childLists[i] != null && childLists[i].Count > 0)
+                    {
+                        sub.SetChildrenBulk(childLists[i]);
+                    }
+                    totalSize += sub.Size;
+                    totalAllocated += sub.AllocatedSize;
+                    totalFiles += sub.FileCount;
+                    totalFolders += 1 + sub.FolderCount;
+                }
+            }
+            else
+            {
+                for (int i = 0; i < subFolders.Count; i++)
+                {
+                    if (ct.IsCancellationRequested) break;
+                    var sub = subFolders[i];
+                    var grandChildren = ScanFolder(sub, clusterSize, depth + 1, maxWorkers, ct);
+                    if (grandChildren.Count > 0)
+                    {
+                        sub.SetChildrenBulk(grandChildren);
+                    }
+                    totalSize += sub.Size;
+                    totalAllocated += sub.AllocatedSize;
+                    totalFiles += sub.FileCount;
+                    totalFolders += 1 + sub.FolderCount;
                 }
             }
         }
 
-        // Recurse into subfolders
-        foreach (var sub in subFolders)
+        // Bağlama noktaları (reparse points) klasör sayısına dahil edilir (döngü olmadan)
+        int nonReparseCount = subFolders?.Count ?? 0;
+        for (int i = 0; i < items.Count; i++)
         {
-            if (ct.IsCancellationRequested) break;
-
-            bool isReparse = (sub.Attributes & FileAttributes.ReparsePoint) != 0;
-            if (!isReparse)
+            if (items[i].IsDirectory && (items[i].Attributes & FileAttributes.ReparsePoint) != 0)
             {
-                ScanNode(sub, clusterSize, topFilesQueue, topFilesLock, ct);
+                totalFolders++;
             }
-
-            folder.Size += sub.Size;
-            folder.AllocatedSize += sub.AllocatedSize;
-            folder.FileCount += sub.FileCount;
-            folder.FolderCount += 1 + sub.FolderCount;
         }
+
+        folder.Size = totalSize;
+        folder.AllocatedSize = totalAllocated;
+        folder.FileCount = totalFiles;
+        folder.FolderCount = totalFolders;
+        return items;
     }
 
-    private void CalculatePercentagesAndSort(FsItem item, long rootTotalSize)
+    private static void FinalizeTree(FsItem root, List<FsItem> rootChildren, long rootTotalSize, TreeSortColumn sortColumn, bool sortAscending)
     {
-        item.PercentOfTotal = rootTotalSize > 0 ? (double)item.Size / rootTotalSize * 100.0 : 0.0;
-        if (item.Parent != null && item.Parent.Size > 0)
-        {
-            item.PercentOfParent = (double)item.Size / item.Parent.Size * 100.0;
-        }
-        else
-        {
-            item.PercentOfParent = 100.0;
-        }
+        root.PercentOfParent = 100.0;
+        root.PercentOfTotal = rootTotalSize > 0 ? 100.0 : 0.0;
 
-        if (item.Children.Count > 0)
+        // Kök alt öğelerinin yüzdelerini hesapla ve sırala, sonra tek Reset ile köke bağla
+        var stack = new Stack<FsItem>(1024);
+        for (int i = 0; i < rootChildren.Count; i++)
         {
-            TreeMaintenance.SortChildren(item);
+            var c = rootChildren[i];
+            c.PercentOfTotal = rootTotalSize > 0 ? (double)c.Size / rootTotalSize * 100.0 : 0.0;
+            c.PercentOfParent = root.Size > 0 ? (double)c.Size / root.Size * 100.0 : 0.0;
+            if (c.IsDirectory && c.HasChildren) stack.Push(c);
+        }
+        TreeMaintenance.SortList(rootChildren, root.FullPath, sortColumn, sortAscending);
+        root.SetChildrenBulk(rootChildren);
 
-            foreach (var child in item.Children)
+        while (stack.Count > 0)
+        {
+            var dir = stack.Pop();
+            var col = dir.Children;
+            int count = col.Count;
+            long parentSize = dir.Size;
+            var list = new List<FsItem>(count);
+            for (int i = 0; i < count; i++)
             {
-                CalculatePercentagesAndSort(child, rootTotalSize);
+                var c = col[i];
+                c.PercentOfTotal = rootTotalSize > 0 ? (double)c.Size / rootTotalSize * 100.0 : 0.0;
+                c.PercentOfParent = parentSize > 0 ? (double)c.Size / parentSize * 100.0 : 0.0;
+                list.Add(c);
+                if (c.IsDirectory && c.HasChildren) stack.Push(c);
             }
+            TreeMaintenance.SortList(list, dir.FullPath, sortColumn, sortAscending);
+            col.ReplaceAll(list);
         }
     }
 
     private void ReportProgressThrottled(string currentPath)
     {
-        var now = DateTime.UtcNow;
-        if ((now - _lastProgressReport).TotalMilliseconds >= 80)
+        long now = Environment.TickCount64;
+        long prev = Volatile.Read(ref _lastProgressMs);
+        if (now - prev >= 80 && Interlocked.CompareExchange(ref _lastProgressMs, now, prev) == prev)
         {
-            _lastProgressReport = now;
             ProgressChanged?.Invoke(new ScanProgress
             {
                 CurrentPath = currentPath,
-                FilesScanned = _filesScanned,
-                FoldersScanned = _foldersScanned,
-                BytesScanned = _bytesScanned,
+                FilesScanned = Volatile.Read(ref _filesScanned),
+                FoldersScanned = Volatile.Read(ref _foldersScanned),
+                BytesScanned = Volatile.Read(ref _bytesScanned),
                 Elapsed = _stopwatch.Elapsed
             });
         }

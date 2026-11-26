@@ -64,12 +64,16 @@ public class MainWindowViewModel : INotifyPropertyChanged
     private string _lastScannedPath = string.Empty;
     private FsItem? _treemapRoot;
     private TimeSpan _lastScanDuration;
+    private TreeSortColumn _currentSortColumn = TreeSortColumn.Size;
+    private bool _isSortAscending = false;
+    private ScanProgress? _latestProgress;
+    private int _progressQueued;
 
     public ObservableCollection<DriveInfoModel> Drives { get; } = new();
     public ObservableCollection<FsItem> RootCollection { get; } = new();
-    public ObservableCollection<ExtensionStat> Extensions { get; } = new();
-    public ObservableCollection<TopFileItem> TopFiles { get; } = new();
-    public ObservableCollection<AgeDistributionItem> AgeDistribution { get; } = new();
+    public BulkObservableCollection<ExtensionStat> Extensions { get; } = new();
+    public BulkObservableCollection<TopFileItem> TopFiles { get; } = new();
+    public BulkObservableCollection<AgeDistributionItem> AgeDistribution { get; } = new();
 
     /// <summary>Kokten TreemapRoot'a kadar olan klasorler (breadcrumb).</summary>
     public ObservableCollection<FsItem> TreemapBreadcrumb { get; } = new();
@@ -486,6 +490,23 @@ public class MainWindowViewModel : INotifyPropertyChanged
     public ICommand TreemapUpCommand { get; }
     /// <summary>Parametre: FsItem (klasor; dosya gelirse ust klasore gider).</summary>
     public ICommand TreemapNavigateCommand { get; }
+    /// <summary>Agac tablosu sutun basligina tiklaninca klasik siralama uygular.</summary>
+    public ICommand SortByColumnCommand { get; }
+
+    public TreeSortColumn CurrentSortColumn => _currentSortColumn;
+    public bool IsSortAscending => _isSortAscending;
+
+    private string SortIndicatorFor(TreeSortColumn col)
+        => _currentSortColumn == col ? (_isSortAscending ? " ▲" : " ▼") : string.Empty;
+
+    public string NameSortIndicator => SortIndicatorFor(TreeSortColumn.Name);
+    public string SizeSortIndicator => SortIndicatorFor(TreeSortColumn.Size);
+    public string AllocatedSortIndicator => SortIndicatorFor(TreeSortColumn.Allocated);
+    public string PercentSortIndicator => SortIndicatorFor(TreeSortColumn.Percent);
+    public string FilesSortIndicator => SortIndicatorFor(TreeSortColumn.Files);
+    public string FoldersSortIndicator => SortIndicatorFor(TreeSortColumn.Folders);
+    public string ModifiedSortIndicator => SortIndicatorFor(TreeSortColumn.Modified);
+    public string AttrSortIndicator => SortIndicatorFor(TreeSortColumn.Attributes);
 
     public MainWindowViewModel() : this(new DialogService(), new WpfUiDispatcher())
     {
@@ -552,6 +573,7 @@ public class MainWindowViewModel : INotifyPropertyChanged
             if (item != null && !item.IsDirectory) item = item.Parent;
             if (item != null) TreemapRoot = item;
         });
+        SortByColumnCommand = new RelayCommand(SortByColumn, _ => !IsScanning);
 
         ThemeService.Current.ThemeChanged += (_, _) => OnPropertyChanged(nameof(IsDarkTheme));
         _scanEngine.ProgressChanged += OnScanProgress;
@@ -632,24 +654,71 @@ public class MainWindowViewModel : INotifyPropertyChanged
 
     // ---------------------------------------------------------------- tarama
 
+    public void SortByColumn(object? param)
+    {
+        TreeSortColumn target;
+        if (param is TreeSortColumn c) target = c;
+        else if (param is string s && Enum.TryParse<TreeSortColumn>(s, true, out var parsed)) target = parsed;
+        else return;
+
+        if (_currentSortColumn == target)
+        {
+            _isSortAscending = !_isSortAscending;
+        }
+        else
+        {
+            _currentSortColumn = target;
+            // Ad sütunu varsayılan A->Z (artan), sayısal/tarih sütunları büyükten/yeniden (azalan)
+            _isSortAscending = target == TreeSortColumn.Name;
+        }
+
+        TreeMaintenance.ActiveSortColumn = _currentSortColumn;
+        TreeMaintenance.ActiveSortAscending = _isSortAscending;
+        RaiseSortIndicators();
+
+        if (RootItem != null)
+        {
+            TreeMaintenance.SortTree(RootItem, _currentSortColumn, _isSortAscending);
+        }
+    }
+
+    private void RaiseSortIndicators()
+    {
+        OnPropertyChanged(nameof(CurrentSortColumn));
+        OnPropertyChanged(nameof(IsSortAscending));
+        OnPropertyChanged(nameof(NameSortIndicator));
+        OnPropertyChanged(nameof(SizeSortIndicator));
+        OnPropertyChanged(nameof(AllocatedSortIndicator));
+        OnPropertyChanged(nameof(PercentSortIndicator));
+        OnPropertyChanged(nameof(FilesSortIndicator));
+        OnPropertyChanged(nameof(FoldersSortIndicator));
+        OnPropertyChanged(nameof(ModifiedSortIndicator));
+        OnPropertyChanged(nameof(AttrSortIndicator));
+    }
+
     private void OnScanProgress(ScanProgress p)
     {
+        Volatile.Write(ref _latestProgress, p);
+        if (Interlocked.Exchange(ref _progressQueued, 1) != 0) return;
+
         _ui.Post(() =>
         {
-            if (!IsScanning) return;
-            CurrentScanPath = p.CurrentPath;
-            ScannedFiles = p.FilesScanned;
-            ScannedFolders = p.FoldersScanned;
-            ScannedBytes = p.BytesScanned;
-            ElapsedScanTime = p.Elapsed.ToString(@"hh\:mm\:ss\.f");
-            ScanSpeed = Strings.Format(Strings.FilesPerSecond, p.FilesPerSecond);
+            Interlocked.Exchange(ref _progressQueued, 0);
+            var latest = Volatile.Read(ref _latestProgress);
+            if (!IsScanning || latest == null) return;
+            CurrentScanPath = latest.CurrentPath;
+            ScannedFiles = latest.FilesScanned;
+            ScannedFolders = latest.FoldersScanned;
+            ScannedBytes = latest.BytesScanned;
+            ElapsedScanTime = latest.Elapsed.ToString(@"hh\:mm\:ss\.f");
+            ScanSpeed = Strings.Format(Strings.FilesPerSecond, latest.FilesPerSecond);
 
             if (RootItem != null)
             {
-                RootItem.Size = p.BytesScanned;
-                RootItem.AllocatedSize = p.BytesScanned;
-                RootItem.FileCount = p.FilesScanned;
-                RootItem.FolderCount = p.FoldersScanned;
+                RootItem.Size = latest.BytesScanned;
+                RootItem.AllocatedSize = latest.BytesScanned;
+                RootItem.FileCount = latest.FilesScanned;
+                RootItem.FolderCount = latest.FoldersScanned;
                 RootItem.NotifySizesChanged();
             }
 
@@ -713,7 +782,7 @@ public class MainWindowViewModel : INotifyPropertyChanged
                 StatusText = Strings.Format(Strings.ScanningMft, scanPath);
                 try
                 {
-                    result = await _mftScanEngine.TryScanAsync(scanPath, _cts.Token, RootItem);
+                    result = await _mftScanEngine.TryScanAsync(scanPath, _cts.Token, RootItem, _currentSortColumn, _isSortAscending);
                     if (result != null) usedMft = true;
                 }
                 catch (OperationCanceledException)
@@ -729,7 +798,7 @@ public class MainWindowViewModel : INotifyPropertyChanged
             if (result == null && !_cts.IsCancellationRequested)
             {
                 StatusText = Strings.Format(Strings.ScanningPath, scanPath);
-                result = await _scanEngine.ScanAsync(scanPath, _cts.Token, RootItem);
+                result = await _scanEngine.ScanAsync(scanPath, _cts.Token, RootItem, _currentSortColumn, _isSortAscending);
             }
 
             if (result == null)
@@ -814,10 +883,9 @@ public class MainWindowViewModel : INotifyPropertyChanged
         AgeDistribution.Clear();
     }
 
-    private static void ReplaceCollection<T>(ObservableCollection<T> target, IEnumerable<T> items)
+    private static void ReplaceCollection<T>(BulkObservableCollection<T> target, IList<T> items)
     {
-        target.Clear();
-        foreach (var i in items) target.Add(i);
+        target.ReplaceAll(items);
     }
 
     // ---------------------------------------------------------------- silme
@@ -933,10 +1001,22 @@ public class MainWindowViewModel : INotifyPropertyChanged
 
     private void RefreshStatistics()
     {
-        var stats = TreeMaintenance.ComputeStatistics(RootItem, DateTime.Now);
-        ReplaceCollection(Extensions, stats.Extensions);
-        ReplaceCollection(TopFiles, stats.TopFiles);
-        ReplaceCollection(AgeDistribution, stats.AgeDistribution);
+        var root = RootItem;
+        _ = Task.Run(() => TreeMaintenance.ComputeStatistics(root, DateTime.Now))
+            .ContinueWith(t =>
+            {
+                if (t.IsCompletedSuccessfully)
+                {
+                    var stats = t.Result;
+                    _ui.Post(() =>
+                    {
+                        if (!ReferenceEquals(RootItem, root)) return;
+                        ReplaceCollection(Extensions, stats.Extensions);
+                        ReplaceCollection(TopFiles, stats.TopFiles);
+                        ReplaceCollection(AgeDistribution, stats.AgeDistribution);
+                    });
+                }
+            }, TaskScheduler.Default);
     }
 
     // ---------------------------------------------------------------- klasoru yeniden tara
@@ -969,7 +1049,7 @@ public class MainWindowViewModel : INotifyPropertyChanged
 
         try
         {
-            var result = await _scanEngine.ScanAsync(item.FullPath, _cts.Token);
+            var result = await _scanEngine.ScanAsync(item.FullPath, _cts.Token, existingRoot: null, _currentSortColumn, _isSortAscending);
 
             if (result.WasCancelled || result.Root == null)
             {
@@ -1126,9 +1206,10 @@ public class MainWindowViewModel : INotifyPropertyChanged
         {
             var node = stack.Pop();
             order.Add(node);
-            foreach (var child in node.Children)
+            if (node.HasChildren)
             {
-                stack.Push(child);
+                var col = node.Children;
+                for (int c = 0; c < col.Count; c++) stack.Push(col[c]);
             }
         }
         for (int i = order.Count - 1; i >= 0; i--)
@@ -1136,12 +1217,16 @@ public class MainWindowViewModel : INotifyPropertyChanged
             var node = order[i];
             bool matches = isEmpty || node.Name.Contains(query, StringComparison.OrdinalIgnoreCase);
             bool anyChildMatches = false;
-            foreach (var child in node.Children)
+            if (node.HasChildren)
             {
-                if (!child.IsFilteredOut)
+                var col = node.Children;
+                for (int c = 0; c < col.Count; c++)
                 {
-                    anyChildMatches = true;
-                    break;
+                    if (!col[c].IsFilteredOut)
+                    {
+                        anyChildMatches = true;
+                        break;
+                    }
                 }
             }
             node.IsFilteredOut = !matches && !anyChildMatches;
@@ -1170,7 +1255,11 @@ public class MainWindowViewModel : INotifyPropertyChanged
             {
                 var n = stack.Pop();
                 n.NotifyUnitChanged();
-                foreach (var c in n.Children) stack.Push(c);
+                if (n.HasChildren)
+                {
+                    var col = n.Children;
+                    for (int i = 0; i < col.Count; i++) stack.Push(col[i]);
+                }
             }
         }
         foreach (var e in Extensions) e.NotifyUnitChanged();

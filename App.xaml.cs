@@ -202,8 +202,40 @@ public partial class App : Application
             }
             Console.WriteLine("PASSED");
 
+            // Test 6: Drive-root vs subfolder sorting rule + clickable column sorting
+            Console.Write("[TEST 6] Testing Drive-Root Split vs Subfolder Mixed Sorting... ");
+            if (!TreeMaintenance.IsDriveRoot(@"C:\") || !TreeMaintenance.IsDriveRoot(@"D:\") || TreeMaintenance.IsDriveRoot(@"C:\Users\hp\AppData"))
+                throw new Exception("IsDriveRoot detection failed!");
+
+            var driveRoot = new AmberTree.Models.FsItem { Name = @"C:\", FullPath = @"C:\", IsDirectory = true };
+            var subAppData = new AmberTree.Models.FsItem { Name = "AppData", FullPath = @"C:\Users\hp\AppData", IsDirectory = true, Parent = driveRoot, Size = 500 };
+            var folderSmall = new AmberTree.Models.FsItem { Name = "Program Files", FullPath = @"C:\Program Files", IsDirectory = true, Parent = driveRoot, Size = 200 };
+            var hugePagefile = new AmberTree.Models.FsItem { Name = "pagefile.sys", FullPath = @"C:\pagefile.sys", IsDirectory = false, Parent = driveRoot, Size = 10_000 };
+            var hiberfile = new AmberTree.Models.FsItem { Name = "hiberfil.sys", FullPath = @"C:\hiberfil.sys", IsDirectory = false, Parent = driveRoot, Size = 4_000 };
+            driveRoot.SetChildrenBulk(new() { hiberfile, folderSmall, hugePagefile, subAppData });
+
+            var appFileBig = new AmberTree.Models.FsItem { Name = "big.bin", FullPath = @"C:\Users\hp\AppData\big.bin", IsDirectory = false, Parent = subAppData, Size = 8_000 };
+            var appDirMid = new AmberTree.Models.FsItem { Name = "Local", FullPath = @"C:\Users\hp\AppData\Local", IsDirectory = true, Parent = subAppData, Size = 3_000 };
+            var appFileSmall = new AmberTree.Models.FsItem { Name = "a.txt", FullPath = @"C:\Users\hp\AppData\a.txt", IsDirectory = false, Parent = subAppData, Size = 100 };
+            subAppData.SetChildrenBulk(new() { appFileSmall, appDirMid, appFileBig });
+
+            TreeMaintenance.SortTree(driveRoot, TreeSortColumn.Size, ascending: false);
+            if (driveRoot.Children[0].Name != "AppData" || driveRoot.Children[1].Name != "Program Files"
+                || driveRoot.Children[2].Name != "pagefile.sys" || driveRoot.Children[3].Name != "hiberfil.sys")
+                throw new Exception("Drive root did not separate folders and files!");
+            if (subAppData.Children[0].Name != "big.bin" || subAppData.Children[1].Name != "Local" || subAppData.Children[2].Name != "a.txt")
+                throw new Exception("Subfolder did not mix folders and files by size!");
+
+            TreeMaintenance.SortTree(driveRoot, TreeSortColumn.Name, ascending: true);
+            if (driveRoot.Children[0].Name != "AppData" || driveRoot.Children[1].Name != "Program Files"
+                || driveRoot.Children[2].Name != "hiberfil.sys" || driveRoot.Children[3].Name != "pagefile.sys")
+                throw new Exception("Drive root Name sort failed!");
+            if (subAppData.Children[0].Name != "a.txt" || subAppData.Children[1].Name != "big.bin" || subAppData.Children[2].Name != "Local")
+                throw new Exception("Subfolder Name sort failed!");
+            Console.WriteLine("PASSED");
+
             Console.WriteLine("==================================================");
-            Console.WriteLine(" ALL T-DESKTREE TESTS PASSED SUCCESSFULLY! (6/6)");
+            Console.WriteLine(" ALL T-DESKTREE TESTS PASSED SUCCESSFULLY! (7/7)");
             Console.WriteLine("==================================================");
 
             Environment.Exit(0);

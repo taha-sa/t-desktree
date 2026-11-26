@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
+using System.Threading;
 using System.Windows.Data;
 using AmberTree.Converters;
 using AmberTree.Services;
@@ -13,7 +13,10 @@ namespace AmberTree.Models;
 
 public class FsItem : INotifyPropertyChanged
 {
-    private readonly object _childrenLock = new();
+    private static readonly BulkObservableCollection<FsItem> EmptyChildren = new();
+
+    private object? _childrenLock;
+    private BulkObservableCollection<FsItem>? _children;
     private bool _isExpanded;
     private bool _isSelected;
     private bool _isFilteredOut;
@@ -32,7 +35,23 @@ public class FsItem : INotifyPropertyChanged
 
     [JsonIgnore]
     public FsItem? Parent { get; set; }
-    public ObservableCollection<FsItem> Children { get; } = new();
+
+    /// <summary>
+    /// Dosyalar için paylaşılan boş koleksiyon döner (yüz binlerce gereksiz koleksiyon ve WPF kilit kaydını önler).
+    /// Klasörler için yalnızca gerektiğinde tek seferde oluşturulur.
+    /// </summary>
+    public BulkObservableCollection<FsItem> Children
+    {
+        get
+        {
+            if (_children != null) return _children;
+            if (!IsDirectory) return EmptyChildren;
+            return EnsureChildren();
+        }
+    }
+
+    [JsonIgnore]
+    public bool HasChildren => _children != null && _children.Count > 0;
 
     [JsonIgnore]
     public bool IsSubfolder => IsDirectory && Parent != null;
@@ -52,11 +71,43 @@ public class FsItem : INotifyPropertyChanged
     public int DepthColorLevel => Depth <= 5 ? Depth : 1 + ((Depth - 1) % 5);
 
     [JsonIgnore]
-    public object SyncLock => _childrenLock;
-
-    public FsItem()
+    public object SyncLock
     {
-        BindingOperations.EnableCollectionSynchronization(Children, _childrenLock);
+        get
+        {
+            var lk = Volatile.Read(ref _childrenLock);
+            if (lk != null) return lk;
+            var created = new object();
+            return Interlocked.CompareExchange(ref _childrenLock, created, null) ?? created;
+        }
+    }
+
+    private BulkObservableCollection<FsItem> EnsureChildren()
+    {
+        var existing = Volatile.Read(ref _children);
+        if (existing != null) return existing;
+
+        var lk = SyncLock;
+        lock (lk)
+        {
+            if (_children == null)
+            {
+                var col = new BulkObservableCollection<FsItem>();
+                BindingOperations.EnableCollectionSynchronization(col, lk);
+                Volatile.Write(ref _children, col);
+            }
+            return _children;
+        }
+    }
+
+    internal void SetChildrenBulk(List<FsItem> items)
+    {
+        if (items.Count == 0 && _children == null) return;
+        var col = EnsureChildren();
+        lock (SyncLock)
+        {
+            col.ReplaceAll(items);
+        }
     }
 
     public bool IsExpanded
@@ -174,27 +225,29 @@ public class FsItem : INotifyPropertyChanged
     {
         get
         {
-            var res = "";
-            if ((Attributes & FileAttributes.ReadOnly) != 0) res += "R";
-            if ((Attributes & FileAttributes.Hidden) != 0) res += "H";
-            if ((Attributes & FileAttributes.System) != 0) res += "S";
-            if ((Attributes & FileAttributes.Archive) != 0) res += "A";
-            if ((Attributes & FileAttributes.Compressed) != 0) res += "C";
-            if ((Attributes & FileAttributes.Encrypted) != 0) res += "E";
-            if ((Attributes & FileAttributes.ReparsePoint) != 0) res += "L";
-            return string.IsNullOrEmpty(res) ? "-" : res;
+            Span<char> buf = stackalloc char[7];
+            int len = 0;
+            var a = Attributes;
+            if ((a & FileAttributes.ReadOnly) != 0) buf[len++] = 'R';
+            if ((a & FileAttributes.Hidden) != 0) buf[len++] = 'H';
+            if ((a & FileAttributes.System) != 0) buf[len++] = 'S';
+            if ((a & FileAttributes.Archive) != 0) buf[len++] = 'A';
+            if ((a & FileAttributes.Compressed) != 0) buf[len++] = 'C';
+            if ((a & FileAttributes.Encrypted) != 0) buf[len++] = 'E';
+            if ((a & FileAttributes.ReparsePoint) != 0) buf[len++] = 'L';
+            return len == 0 ? "-" : new string(buf[..len]);
         }
     }
 
-    public void EnsureDirectChildrenLoaded()
+    public void EnsureDirectChildrenLoaded(uint? knownClusterSize = null)
     {
         if (!IsDirectory || string.IsNullOrEmpty(FullPath)) return;
-        lock (_childrenLock)
+        lock (SyncLock)
         {
-            if (Children.Count > 0) return;
+            if (HasChildren) return;
             try
             {
-                string searchPattern = Path.Combine(FullPath, "*");
+                string searchPattern = NativeFileSystem.ToSearchPattern(FullPath);
                 IntPtr hFind = NativeFileSystem.FindFirstFileEx(
                     searchPattern,
                     1, // FindExInfoBasic
@@ -205,9 +258,8 @@ public class FsItem : INotifyPropertyChanged
 
                 if (hFind == IntPtr.Zero || hFind.ToInt64() == -1) return;
 
-                var subFolders = new List<FsItem>();
-                var directFiles = new List<FsItem>();
-                uint clusterSize = NativeFileSystem.GetClusterSize(FullPath);
+                var items = new List<FsItem>();
+                uint clusterSize = knownClusterSize ?? NativeFileSystem.GetClusterSize(FullPath);
 
                 try
                 {
@@ -223,7 +275,7 @@ public class FsItem : INotifyPropertyChanged
 
                         if (isDir)
                         {
-                            subFolders.Add(new FsItem
+                            items.Add(new FsItem
                             {
                                 Name = name,
                                 FullPath = childPath,
@@ -237,7 +289,7 @@ public class FsItem : INotifyPropertyChanged
                         {
                             long fileSize = ((long)findData.nFileSizeHigh << 32) | (uint)findData.nFileSizeLow;
                             long allocated = NativeFileSystem.AlignToCluster(fileSize, clusterSize);
-                            directFiles.Add(new FsItem
+                            items.Add(new FsItem
                             {
                                 Name = name,
                                 FullPath = childPath,
@@ -258,8 +310,11 @@ public class FsItem : INotifyPropertyChanged
                     NativeFileSystem.FindClose(hFind);
                 }
 
-                foreach (var sub in subFolders) Children.Add(sub);
-                foreach (var f in directFiles) Children.Add(f);
+                if (items.Count > 0)
+                {
+                    TreeMaintenance.SortList(items, FullPath, TreeMaintenance.ActiveSortColumn, TreeMaintenance.ActiveSortAscending);
+                    EnsureChildren().ReplaceAll(items);
+                }
             }
             catch
             {

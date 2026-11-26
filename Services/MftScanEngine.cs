@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -16,8 +15,8 @@ namespace AmberTree.Services;
 /// <summary>
 /// Seviye C: NTFS MFT (Master File Table) doğrudan ikili okuma motoru.
 /// WizTree / Everything tarzı çalışan bu motor, diski klasör klasör gezmek yerine
-/// NTFS MFT tablosunu doğrudan ham disk bloklarından okuyarak tüm diski 1-2 saniyede tarar.
-/// Yönetici yetkisi gerektirir. Yetki yoksa veya sürücü NTFS değilse otomatik olarak ScanEngine'e döner.
+/// NTFS MFT tablosunu doğrudan 4 MB bloklar halinde ham diskten okuyarak tüm diski saniyeler içinde tarar.
+/// Yönetici yetkisi gerektirir. Yetki yoksa veya sürücü NTFS değilse otomatik olarak paralel ScanEngine'e döner.
 /// </summary>
 public class MftScanEngine
 {
@@ -26,6 +25,7 @@ public class MftScanEngine
     private const uint FILE_SHARE_WRITE = 0x00000002;
     private const uint OPEN_EXISTING = 3;
     private const uint FILE_FLAG_BACKUP_SEMANTICS = 0x02000000;
+    private const uint FILE_FLAG_SEQUENTIAL_SCAN = 0x08000000;
 
     private const uint FSCTL_GET_NTFS_VOLUME_DATA = 0x00090064;
 
@@ -93,7 +93,7 @@ public class MftScanEngine
     private long _filesScanned;
     private long _foldersScanned;
     private long _bytesScanned;
-    private DateTime _lastProgressReport = DateTime.MinValue;
+    private long _lastProgressMs;
 
     public static bool IsSupported(string targetPath)
     {
@@ -114,13 +114,18 @@ public class MftScanEngine
         }
     }
 
-    public async Task<ScanResult?> TryScanAsync(string targetPath, CancellationToken ct, FsItem? existingRoot = null)
+    public async Task<ScanResult?> TryScanAsync(
+        string targetPath,
+        CancellationToken ct,
+        FsItem? existingRoot = null,
+        TreeSortColumn sortColumn = TreeSortColumn.Size,
+        bool sortAscending = false)
     {
         if (!IsSupported(targetPath)) return null;
 
         try
         {
-            return await Task.Run(() => PerformMftScan(targetPath, ct, existingRoot), ct);
+            return await Task.Run(() => PerformMftScan(targetPath, ct, existingRoot, sortColumn, sortAscending), ct);
         }
         catch (OperationCanceledException)
         {
@@ -133,7 +138,7 @@ public class MftScanEngine
         }
     }
 
-    private class MftNode
+    private sealed class MftNode
     {
         public ulong RecordId;
         public ulong ParentId;
@@ -150,13 +155,18 @@ public class MftScanEngine
 
     private record struct DataRun(long StartCluster, long ClusterCount);
 
-    private ScanResult? PerformMftScan(string targetPath, CancellationToken ct, FsItem? existingRoot)
+    private ScanResult? PerformMftScan(
+        string targetPath,
+        CancellationToken ct,
+        FsItem? existingRoot,
+        TreeSortColumn sortColumn,
+        bool sortAscending)
     {
         _stopwatch.Restart();
         _filesScanned = 0;
         _foldersScanned = 0;
         _bytesScanned = 0;
-        _lastProgressReport = DateTime.MinValue;
+        _lastProgressMs = 0;
 
         var rootPath = Path.GetPathRoot(targetPath);
         if (string.IsNullOrWhiteSpace(rootPath)) return null;
@@ -169,7 +179,7 @@ public class MftScanEngine
             FILE_SHARE_READ | FILE_SHARE_WRITE,
             IntPtr.Zero,
             OPEN_EXISTING,
-            FILE_FLAG_BACKUP_SEMANTICS,
+            FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_SEQUENTIAL_SCAN,
             IntPtr.Zero);
 
         if (hVolume.IsInvalid)
@@ -201,7 +211,7 @@ public class MftScanEngine
 
         // 2. MFT'nin ilk kaydını (Kayıt 0 - $MFT) oku ve $DATA veri koşularını (data runs) çöz
         byte[] record0 = new byte[recordSize];
-        if (!ReadVolumeBytes(hVolume, mftByteOffset, record0))
+        if (!SetFilePointerEx(hVolume, mftByteOffset, out _, 0) || !ReadFile(hVolume, record0, recordSize, out uint r0Read, IntPtr.Zero) || r0Read < recordSize)
         {
             return null;
         }
@@ -209,18 +219,17 @@ public class MftScanEngine
         List<DataRun> dataRuns = ExtractMftDataRuns(record0);
         if (dataRuns.Count == 0)
         {
-            // Veri koşusu bulunamazsa temel başlangıç kümesinden tek parça olarak okumayı dene
             long totalMftBytes = (long)volData.MftValidDataLength;
-            if (totalMftBytes <= 0) totalMftBytes = 256 * 1024 * 1024; // varsayılan 256MB
+            if (totalMftBytes <= 0) totalMftBytes = 256 * 1024 * 1024;
             dataRuns.Add(new DataRun((long)volData.MftStartLcn, totalMftBytes / bytesPerCluster));
         }
 
-        // 3. MFT Tablosunu bloklar halinde tara ve kayıtları belleğe aktar
-        var nodes = new Dictionary<ulong, MftNode>(250000);
-        var topFilesQueue = new PriorityQueue<TopFileItem, long>();
-        object topFilesLock = new();
+        // 3. MFT Tablosunu 4 MB bloklar halinde ardışık tara (run başına tek seek)
+        int estimatedRecords = (int)Math.Clamp((long)(volData.MftValidDataLength / recordSize), 65_536L, 4_000_000L);
+        var nodes = new Dictionary<ulong, MftNode>(estimatedRecords);
+        DateTime fallbackNow = DateTime.Now;
 
-        const uint readBlockSize = 512 * 1024; // 512 KB bloklar halinde hızlı okuma
+        const uint readBlockSize = 4 * 1024 * 1024; // 4 MB bloklar: 8x daha az ReadFile sistem çağrısı
         byte[] readBuffer = new byte[readBlockSize];
 
         ulong currentRecordIndex = 0;
@@ -230,31 +239,29 @@ public class MftScanEngine
 
             long runByteOffset = run.StartCluster * bytesPerCluster;
             long runByteLength = run.ClusterCount * bytesPerCluster;
-            long runBytesRead = 0;
+            if (!SetFilePointerEx(hVolume, runByteOffset, out _, 0)) break;
 
+            long runBytesRead = 0;
             while (runBytesRead < runByteLength && !ct.IsCancellationRequested)
             {
                 uint toRead = (uint)Math.Min(readBlockSize, runByteLength - runBytesRead);
-                if (!ReadVolumeBytes(hVolume, runByteOffset + runBytesRead, readBuffer, toRead))
+                if (!ReadFile(hVolume, readBuffer, toRead, out uint actuallyRead, IntPtr.Zero) || actuallyRead == 0)
                 {
                     break;
                 }
 
-                // Buffer içindeki 1024 baytlık kayıtları ayrıştır
                 int offset = 0;
-                while (offset + recordSize <= toRead)
+                int limit = (int)actuallyRead;
+                int recSize = (int)recordSize;
+                while (offset + recSize <= limit)
                 {
-                    ParseRecord(readBuffer, offset, (int)recordSize, currentRecordIndex, nodes, topFilesQueue, topFilesLock, bytesPerCluster);
-                    offset += (int)recordSize;
+                    ParseRecord(readBuffer, offset, recSize, currentRecordIndex, nodes, bytesPerCluster, fallbackNow);
+                    offset += recSize;
                     currentRecordIndex++;
                 }
 
-                runBytesRead += toRead;
-
-                if ((_filesScanned & 2047) == 0)
-                {
-                    ReportProgressThrottled($"{driveLetter}:\\ [MFT Analizi: {_filesScanned:N0} dosya]");
-                }
+                runBytesRead += actuallyRead;
+                ReportProgressThrottled($"{driveLetter}:\\ [MFT: {_filesScanned:N0}]");
             }
         }
 
@@ -266,7 +273,7 @@ public class MftScanEngine
         // 4. Çocukları ebeveynlerine bağla (Parent Linking)
         foreach (var node in nodes.Values)
         {
-            if (node.RecordId == 5 || node.RecordId == node.ParentId) continue; // Root ($Root) veya kendi ebeveyni
+            if (node.RecordId == 5 || node.RecordId == node.ParentId) continue;
 
             if (nodes.TryGetValue(node.ParentId, out var parentNode))
             {
@@ -292,61 +299,44 @@ public class MftScanEngine
             targetMftNode = found;
         }
 
-        // 7. FsItem hiyerarşisine dönüştür
+        // 7. FsItem hiyerarşisine tek geçişte dönüştür, yüzdeleri hesapla ve sırala
         var dirInfo = new DirectoryInfo(targetPath);
         FsItem rootItem = existingRoot ?? new FsItem
         {
             Name = string.IsNullOrEmpty(dirInfo.Name) ? targetPath : dirInfo.Name,
             FullPath = targetPath,
             IsDirectory = true,
-            LastModified = dirInfo.Exists ? dirInfo.LastWriteTime : DateTime.Now,
+            LastModified = dirInfo.Exists ? dirInfo.LastWriteTime : fallbackNow,
             Attributes = dirInfo.Exists ? dirInfo.Attributes : FileAttributes.Directory,
             PercentOfParent = 100.0,
             PercentOfTotal = 100.0,
             IsExpanded = true
         };
 
-        PopulateFsItemTree(targetMftNode, rootItem, targetPath, new HashSet<ulong>());
-        CalculatePercentagesAndSort(rootItem, rootItem.Size);
+        rootItem.Size = targetMftNode.Size;
+        rootItem.AllocatedSize = targetMftNode.AllocatedSize;
+        rootItem.FileCount = targetMftNode.FileCount;
+        rootItem.FolderCount = targetMftNode.FolderCount;
+        rootItem.PercentOfParent = 100.0;
+        rootItem.PercentOfTotal = targetMftNode.Size > 0 ? 100.0 : 0.0;
+
+        PopulateAndSortFsItemTree(targetMftNode, rootItem, targetPath, targetMftNode.Size, sortColumn, sortAscending, new HashSet<ulong>());
 
         _stopwatch.Stop();
-
-        // Top 100 Listesini oluştur
-        var topList = new List<TopFileItem>(topFilesQueue.Count);
-        while (topFilesQueue.Count > 0)
-        {
-            topList.Add(topFilesQueue.Dequeue());
-        }
-        topList.Reverse();
-        for (int idx = 0; idx < topList.Count; idx++)
-        {
-            topList[idx].Rank = idx + 1;
-            topList[idx].PercentOfTotal = rootItem.Size > 0 ? (double)topList[idx].Size / rootItem.Size * 100.0 : 0.0;
-        }
 
         return new ScanResult
         {
             Root = rootItem,
             Extensions = new List<ExtensionStat>(),
-            TopFiles = topList,
+            TopFiles = new List<TopFileItem>(),
             AgeDistribution = new List<AgeDistributionItem>(),
             Elapsed = _stopwatch.Elapsed,
-            TotalFiles = _filesScanned,
-            TotalFolders = _foldersScanned,
+            TotalFiles = targetMftNode.FileCount,
+            TotalFolders = targetMftNode.FolderCount,
             TotalSize = rootItem.Size,
             TotalAllocated = rootItem.AllocatedSize,
             WasCancelled = ct.IsCancellationRequested
         };
-    }
-
-    private static bool ReadVolumeBytes(SafeFileHandle hVolume, long byteOffset, byte[] buffer, uint? count = null)
-    {
-        if (!SetFilePointerEx(hVolume, byteOffset, out _, 0)) // FILE_BEGIN
-        {
-            return false;
-        }
-        uint toRead = count ?? (uint)buffer.Length;
-        return ReadFile(hVolume, buffer, toRead, out _, IntPtr.Zero);
     }
 
     private static List<DataRun> ExtractMftDataRuns(byte[] record)
@@ -392,7 +382,6 @@ public class MftScanEngine
                             {
                                 lcnDelta |= ((long)record[pos++]) << (i * 8);
                             }
-                            // Sign extend if highest bit is set
                             if (offsetBytes > 0 && (record[pos - 1] & 0x80) != 0)
                             {
                                 for (int i = offsetBytes; i < 8; i++)
@@ -425,22 +414,20 @@ public class MftScanEngine
         int recordSize,
         ulong recordIndex,
         Dictionary<ulong, MftNode> nodes,
-        PriorityQueue<TopFileItem, long> topFilesQueue,
-        object topFilesLock,
-        uint clusterSize)
+        uint clusterSize,
+        DateTime fallbackNow)
     {
-        // 'FILE' imza kontrolü
         if (buffer[offset] != 'F' || buffer[offset + 1] != 'I' || buffer[offset + 2] != 'L' || buffer[offset + 3] != 'E')
         {
             return;
         }
 
         ushort flags = BitConverter.ToUInt16(buffer, offset + 22);
-        if ((flags & 0x01) == 0) return; // Kayıt kullanımda değil (silinmiş dosya)
+        if ((flags & 0x01) == 0) return; // Silinmiş kayıt
 
         bool isDir = (flags & 0x02) != 0;
 
-        // USA Fixup uygula (sektör sonu 2 baytlarını güncelleme dizisiyle onar)
+        // USA Fixup uygula
         ushort usaOffset = BitConverter.ToUInt16(buffer, offset + 4);
         ushort usaCount = BitConverter.ToUInt16(buffer, offset + 6);
         if (usaCount > 1 && usaOffset + usaCount * 2 <= recordSize)
@@ -458,7 +445,6 @@ public class MftScanEngine
             }
         }
 
-        // Nitelikleri (Attributes) tara
         int attrOffset = BitConverter.ToUInt16(buffer, offset + 20);
         string? fileName = null;
         ulong parentRef = 0;
@@ -494,7 +480,7 @@ public class MftScanEngine
             else if (attrType == 0x30) // $FILE_NAME
             {
                 byte nonResident = buffer[offset + attrOffset + 8];
-                if (nonResident == 0 && attrOffset + 22 <= recordSize) // $FILE_NAME her zaman resident'tır
+                if (nonResident == 0 && attrOffset + 22 <= recordSize)
                 {
                     ushort contentOffset = BitConverter.ToUInt16(buffer, offset + attrOffset + 20);
                     int cPos = offset + attrOffset + contentOffset;
@@ -502,7 +488,6 @@ public class MftScanEngine
                     if (cPos + 66 <= offset + recordSize)
                     {
                         byte namespaceType = buffer[cPos + 65];
-                        // DOS (8.3) takma adlarını atla (Win32 veya Win32&DOS isimlerini al)
                         if (namespaceType != 2 || fileName == null)
                         {
                             parentRef = BitConverter.ToUInt64(buffer, cPos) & 0x0000FFFFFFFFFFFF;
@@ -531,7 +516,7 @@ public class MftScanEngine
                     }
                 }
             }
-            else if (attrType == 0x80 && !isDir) // $DATA (yalnız adsız ana akış; ADS değil)
+            else if (attrType == 0x80 && !isDir) // $DATA (adsız ana akış)
             {
                 byte nonResident = buffer[offset + attrOffset + 8];
                 byte attrNameLen = buffer[offset + attrOffset + 9];
@@ -555,8 +540,6 @@ public class MftScanEngine
         }
 
         if (string.IsNullOrEmpty(fileName)) return;
-
-        // Gizli MFT metadata dosyalarını filtrele ($MFT, $LogFile vb.)
         if (fileName.StartsWith('$') && recordIndex < 16) return;
 
         var node = new MftNode
@@ -568,50 +551,19 @@ public class MftScanEngine
             AllocatedSize = allocatedSize > 0 ? allocatedSize : NativeFileSystem.AlignToCluster(fileSize, clusterSize),
             IsDirectory = isDir,
             Attributes = fileAttrs,
-            LastModified = lastWriteTime > DateTime.MinValue ? lastWriteTime : DateTime.Now
+            LastModified = lastWriteTime > DateTime.MinValue ? lastWriteTime : fallbackNow
         };
 
         nodes[recordIndex] = node;
 
         if (isDir)
         {
-            Interlocked.Increment(ref _foldersScanned);
+            _foldersScanned++;
         }
         else
         {
-            Interlocked.Increment(ref _filesScanned);
-            Interlocked.Add(ref _bytesScanned, fileSize);
-
-            lock (topFilesLock)
-            {
-                if (topFilesQueue.Count < 100)
-                {
-                    topFilesQueue.Enqueue(new TopFileItem
-                    {
-                        Name = fileName,
-                        DirectoryPath = string.Empty, // Sonradan aşılanacak
-                        FullPath = fileName,
-                        Extension = Path.GetExtension(fileName),
-                        Size = fileSize,
-                        AllocatedSize = allocatedSize,
-                        LastModified = node.LastModified
-                    }, fileSize);
-                }
-                else if (fileSize > topFilesQueue.Peek().Size)
-                {
-                    topFilesQueue.Dequeue();
-                    topFilesQueue.Enqueue(new TopFileItem
-                    {
-                        Name = fileName,
-                        DirectoryPath = string.Empty,
-                        FullPath = fileName,
-                        Extension = Path.GetExtension(fileName),
-                        Size = fileSize,
-                        AllocatedSize = allocatedSize,
-                        LastModified = node.LastModified
-                    }, fileSize);
-                }
-            }
+            _filesScanned++;
+            _bytesScanned += fileSize;
         }
     }
 
@@ -625,8 +577,9 @@ public class MftScanEngine
         long totalFiles = 0;
         long totalFolders = 0;
 
-        foreach (var child in node.Children)
+        for (int i = 0; i < node.Children.Count; i++)
         {
+            var child = node.Children[i];
             if (child.IsDirectory)
             {
                 RollupSizes(child, visited);
@@ -665,16 +618,24 @@ public class MftScanEngine
         return target;
     }
 
-    private static void PopulateFsItemTree(MftNode mftNode, FsItem fsItem, string currentPath, HashSet<ulong> visited)
+    private static void PopulateAndSortFsItemTree(
+        MftNode mftNode,
+        FsItem fsItem,
+        string currentPath,
+        long rootTotalSize,
+        TreeSortColumn sortColumn,
+        bool sortAscending,
+        HashSet<ulong> visited)
     {
         if (!visited.Add(mftNode.RecordId)) return;
         if (mftNode.Children == null || mftNode.Children.Count == 0) return;
 
-        var subFolders = new List<FsItem>();
-        var directFiles = new List<FsItem>();
+        long parentSize = mftNode.Size;
+        var children = new List<FsItem>(mftNode.Children.Count);
 
-        foreach (var child in mftNode.Children)
+        for (int i = 0; i < mftNode.Children.Count; i++)
         {
+            var child = mftNode.Children[i];
             string childPath = Path.Combine(currentPath, child.Name);
             var item = new FsItem
             {
@@ -683,57 +644,32 @@ public class MftScanEngine
                 IsDirectory = child.IsDirectory,
                 Size = child.Size,
                 AllocatedSize = child.AllocatedSize,
-                FileCount = child.FileCount,
+                FileCount = child.IsDirectory ? child.FileCount : 1,
                 FolderCount = child.FolderCount,
                 Attributes = child.Attributes,
                 LastModified = child.LastModified,
-                Parent = fsItem
+                Parent = fsItem,
+                PercentOfTotal = rootTotalSize > 0 ? (double)child.Size / rootTotalSize * 100.0 : 0.0,
+                PercentOfParent = parentSize > 0 ? (double)child.Size / parentSize * 100.0 : 0.0
             };
 
-            if (child.IsDirectory)
+            if (child.IsDirectory && child.Children != null && child.Children.Count > 0)
             {
-                subFolders.Add(item);
-                PopulateFsItemTree(child, item, childPath, visited);
+                PopulateAndSortFsItemTree(child, item, childPath, rootTotalSize, sortColumn, sortAscending, visited);
             }
-            else
-            {
-                directFiles.Add(item);
-            }
+            children.Add(item);
         }
 
-        foreach (var sub in subFolders) fsItem.Children.Add(sub);
-        foreach (var f in directFiles) fsItem.Children.Add(f);
-    }
-
-    private static void CalculatePercentagesAndSort(FsItem item, long rootTotalSize)
-    {
-        item.PercentOfTotal = rootTotalSize > 0 ? (double)item.Size / rootTotalSize * 100.0 : 0.0;
-        if (item.Parent != null && item.Parent.Size > 0)
-        {
-            item.PercentOfParent = (double)item.Size / item.Parent.Size * 100.0;
-        }
-        else
-        {
-            item.PercentOfParent = 100.0;
-        }
-
-        if (item.Children.Count > 0)
-        {
-            TreeMaintenance.SortChildren(item);
-
-            foreach (var child in item.Children)
-            {
-                CalculatePercentagesAndSort(child, rootTotalSize);
-            }
-        }
+        TreeMaintenance.SortList(children, currentPath, sortColumn, sortAscending);
+        fsItem.SetChildrenBulk(children);
     }
 
     private void ReportProgressThrottled(string currentPath)
     {
-        var now = DateTime.UtcNow;
-        if ((now - _lastProgressReport).TotalMilliseconds >= 80)
+        long now = Environment.TickCount64;
+        if (now - _lastProgressMs >= 80)
         {
-            _lastProgressReport = now;
+            _lastProgressMs = now;
             ProgressChanged?.Invoke(new ScanProgress
             {
                 CurrentPath = currentPath,
