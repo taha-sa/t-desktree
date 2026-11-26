@@ -69,19 +69,19 @@
                         <!-- Instagram -->
                         <TextBlock Style="{StaticResource Text.Body}" Margin="0,0,0,10">
                             <Run Text="{loc:Text Instagram}" Foreground="{DynamicResource Brush.Text.Secondary}" FontWeight="SemiBold" />
-                            <Hyperlink NavigateUri="https://www.instagram.com/tdesk.stuido" RequestNavigate="Hyperlink_RequestNavigate"
+                            <Hyperlink NavigateUri="https://www.instagram.com/tdesk.studio" RequestNavigate="Hyperlink_RequestNavigate"
                                        Foreground="{DynamicResource Brush.Accent}" TextDecorations="None"
                                        ToolTip="{loc:Text InstagramHelp}">
-                                <Run Text="tdesk.stuido" FontWeight="Bold" />
+                                <Run Text="tdesk.studio" FontWeight="Bold" />
                             </Hyperlink>
                         </TextBlock>
 
                         <Border Height="1" Background="{DynamicResource Brush.Border.Default}" Margin="0,0,0,10" />
 
-                        <!-- Imza (Cok kucuk) -->
-                        <TextBlock Style="{StaticResource Text.Muted}" FontSize="9.5" FontStyle="Italic">
+                        <!-- Imza -->
+                        <TextBlock Style="{StaticResource Text.Muted}" FontSize="10.5" FontStyle="Italic">
                             <Run Text="{loc:Text Signature}" Foreground="{DynamicResource Brush.Text.Muted}" />
-                            <Run Text="{loc:Text DeveloperName}" Foreground="{DynamicResource Brush.Text.Secondary}" FontWeight="Normal" />
+                            <Run Text="{loc:Text DeveloperName}" Foreground="{DynamicResource Brush.Text.Primary}" FontWeight="SemiBold" />
                         </TextBlock>
                     </StackPanel>
                 </Border>

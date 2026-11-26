@@ -89,19 +89,17 @@ public static class TreeMaintenance
         return sizeTie != 0 ? sizeTie : StringComparer.OrdinalIgnoreCase.Compare(a.Name, b.Name);
     }
 
-    /// <summary>Çocuk dizisini yerinde, ek bellek ayırmadan O(N log N) sıralar.</summary>
+    /// <summary>Çocuk dizisini yerinde, ek bellek ayırmadan O(N log N) sıralar (klasörler her zaman üstte, dosyalar altta).</summary>
     public static void SortArray(FsItem[] items, string? parentFullPath, TreeSortColumn column = TreeSortColumn.Size, bool ascending = false)
     {
         if (items.Length <= 1) return;
-        bool splitDirsAndFiles = IsDriveRoot(parentFullPath);
-        Array.Sort(items, (a, b) => CompareItems(a, b, column, ascending, splitDirsAndFiles));
+        Array.Sort(items, (a, b) => CompareItems(a, b, column, ascending, splitDirsAndFiles: true));
     }
 
     public static void SortList(List<FsItem> items, string? parentFullPath, TreeSortColumn column = TreeSortColumn.Size, bool ascending = false)
     {
         if (items.Count <= 1) return;
-        bool splitDirsAndFiles = IsDriveRoot(parentFullPath);
-        items.Sort((a, b) => CompareItems(a, b, column, ascending, splitDirsAndFiles));
+        items.Sort((a, b) => CompareItems(a, b, column, ascending, splitDirsAndFiles: true));
     }
 
     /// <summary>Dugumu ebeveyninden cikarir ve ust zincirin toplamlarini dusurur. Kok cikarilamaz.</summary>
@@ -193,8 +191,7 @@ public static class TreeMaintenance
     {
         var arr = node.RawChildren;
         if (arr == null || arr.Length <= 1) return;
-        bool splitDirsAndFiles = IsDriveRoot(node.FullPath);
-        Array.Sort(arr, (a, b) => CompareItems(a, b, column, ascending, splitDirsAndFiles));
+        Array.Sort(arr, (a, b) => CompareItems(a, b, column, ascending, splitDirsAndFiles: true));
         node.SyncObservableChildrenIfCreated();
     }
 

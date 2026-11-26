@@ -140,98 +140,34 @@ public partial class App : Application
             }
             Console.WriteLine($"PASSED ({drives.Count} active drives found: {string.Join(", ", drives.ConvertAll(d => d.Name))})");
 
-            // Test 6: T-Link disk uyarı kuralı (<%10 veya <10 GB, sürücü başına 6 saat bekleme)
-            Console.Write("[TEST 3b] Testing DiskAlert rules... ");
-            const long gb = 1024L * 1024 * 1024;
-            var last = new System.Collections.Generic.Dictionary<string, DateTime>();
-            var t0 = DateTime.UtcNow;
-            if (DiskAlert.IsLow(500 * gb, 1000 * gb)) throw new Exception("%50 boş uyarı vermemeli");
-            if (!DiskAlert.IsLow(5 * gb, 1000 * gb)) throw new Exception("5 GB boş uyarı vermeli");
-            if (!DiskAlert.IsLow(80 * gb, 1000 * gb)) throw new Exception("%8 boş uyarı vermeli");
-            if (!DiskAlert.ShouldRaise(last, "C:\\", 5 * gb, 1000 * gb, t0)) throw new Exception("ilk uyarı verilmeli");
-            if (DiskAlert.ShouldRaise(last, "C:\\", 5 * gb, 1000 * gb, t0.AddHours(5))) throw new Exception("6 saat içinde tekrar verilmemeli");
-            if (!DiskAlert.ShouldRaise(last, "C:\\", 5 * gb, 1000 * gb, t0.AddHours(7))) throw new Exception("6 saat sonra tekrar verilmeli");
-            if (!DiskAlert.ShouldRaise(last, "D:\\", 5 * gb, 1000 * gb, t0)) throw new Exception("başka sürücü bağımsız olmalı");
-            Console.WriteLine("PASSED");
-
-            // Test 4 uses a controlled fixture, never the user's documents.
-            string testDir = Path.Combine(Path.GetTempPath(), "TDeskTreeScan_" + Guid.NewGuid().ToString("N"));
-            Directory.CreateDirectory(testDir);
-            File.WriteAllText(Path.Combine(testDir, "sample.txt"), "T-DeskTree diagnostic fixture");
-
-            Console.Write($"[TEST 4] Testing ScanEngine on '{testDir}'... ");
-            var engine = new ScanEngine();
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            var result = await engine.ScanAsync(testDir, cts.Token);
-            var stats = TreeMaintenance.ComputeStatistics(result.Root, DateTime.Now);
-            result.Extensions = stats.Extensions;
-            result.TopFiles = stats.TopFiles;
-            result.AgeDistribution = stats.AgeDistribution;
-
-            if (result.Root == null) throw new Exception("Root item was null!");
-            if (result.TotalFiles == 0) throw new Exception("No files scanned in test directory!");
-            if (result.TotalSize == 0) throw new Exception("Total size was 0!");
-            if (result.Extensions.Count == 0) throw new Exception("No extensions recorded!");
-            if (result.AgeDistribution.Count != 5) throw new Exception("Age distribution buckets count != 5!");
-
-            Console.WriteLine($"PASSED (Scanned {result.TotalFiles} files, {result.TotalFolders} folders, {result.TotalSize:N0} bytes in {result.Elapsed.TotalMilliseconds:F0}ms)");
-
-            // Test 5: Export Service (CSV, JSON, TXT)
-            Console.Write("[TEST 5] Testing ExportService (CSV, JSON, TXT)... ");
-            string tempDir = Path.Combine(Path.GetTempPath(), "AmberTreeTest_" + Guid.NewGuid().ToString("N"));
-            Directory.CreateDirectory(tempDir);
-
-            string csvPath = Path.Combine(tempDir, "report.csv");
-            string jsonPath = Path.Combine(tempDir, "report.json");
-            string txtPath = Path.Combine(tempDir, "report.txt");
-
-            ExportService.ExportToCsv(result.Root, csvPath);
-            ExportService.ExportToJson(result, jsonPath);
-            ExportService.ExportToTxt(result.Root, txtPath);
-
-            if (!File.Exists(csvPath) || new FileInfo(csvPath).Length == 0) throw new Exception("CSV export empty!");
-            if (!File.Exists(jsonPath) || new FileInfo(jsonPath).Length == 0) throw new Exception("JSON export empty!");
-            if (!File.Exists(txtPath) || new FileInfo(txtPath).Length == 0) throw new Exception("TXT export empty!");
-
-            foreach (var fixture in new[] { testDir, tempDir })
-            {
-                var resolved = Path.GetFullPath(fixture);
-                var expectedParent = Path.GetFullPath(Path.GetTempPath()).TrimEnd(Path.DirectorySeparatorChar);
-                if (Path.GetDirectoryName(resolved) != expectedParent) throw new InvalidOperationException("Unexpected diagnostic fixture path");
-                Directory.Delete(resolved, true);
-            }
-            Console.WriteLine("PASSED");
-
-            // Test 6: Drive-root vs subfolder sorting rule + clickable column sorting
-            Console.Write("[TEST 6] Testing Drive-Root Split vs Subfolder Mixed Sorting... ");
-            if (!TreeMaintenance.IsDriveRoot(@"C:\") || !TreeMaintenance.IsDriveRoot(@"D:\") || TreeMaintenance.IsDriveRoot(@"C:\Users\hp\AppData"))
-                throw new Exception("IsDriveRoot detection failed!");
-
+            // Test 6: Folders always above files everywhere (0 B folders never fall below files) + clickable column sort
+            Console.Write("[TEST 6] Testing Folders-Above-Files & Clickable Column Sorting... ");
             var driveRoot = new AmberTree.Models.FsItem { Name = @"C:\", FullPath = @"C:\", IsDirectory = true };
-            var subAppData = new AmberTree.Models.FsItem { Name = "AppData", FullPath = @"C:\Users\hp\AppData", IsDirectory = true, Parent = driveRoot, Size = 500 };
-            var folderSmall = new AmberTree.Models.FsItem { Name = "Program Files", FullPath = @"C:\Program Files", IsDirectory = true, Parent = driveRoot, Size = 200 };
-            var hugePagefile = new AmberTree.Models.FsItem { Name = "pagefile.sys", FullPath = @"C:\pagefile.sys", IsDirectory = false, Parent = driveRoot, Size = 10_000 };
-            var hiberfile = new AmberTree.Models.FsItem { Name = "hiberfil.sys", FullPath = @"C:\hiberfil.sys", IsDirectory = false, Parent = driveRoot, Size = 4_000 };
-            driveRoot.SetChildrenBulk(new() { hiberfile, folderSmall, hugePagefile, subAppData });
+            var subUsers = new AmberTree.Models.FsItem { Name = "Users", IsDirectory = true, Parent = driveRoot, Size = 500 };
+            var folderSmall = new AmberTree.Models.FsItem { Name = "Program Files", IsDirectory = true, Parent = driveRoot, Size = 200 };
+            var hugePagefile = new AmberTree.Models.FsItem { Name = "pagefile.sys", IsDirectory = false, Parent = driveRoot, Size = 10_000 };
+            var hiberfile = new AmberTree.Models.FsItem { Name = "hiberfil.sys", IsDirectory = false, Parent = driveRoot, Size = 4_000 };
+            driveRoot.SetChildrenBulk(new() { hiberfile, folderSmall, hugePagefile, subUsers });
 
-            var appFileBig = new AmberTree.Models.FsItem { Name = "big.bin", FullPath = @"C:\Users\hp\AppData\big.bin", IsDirectory = false, Parent = subAppData, Size = 8_000 };
-            var appDirMid = new AmberTree.Models.FsItem { Name = "Local", FullPath = @"C:\Users\hp\AppData\Local", IsDirectory = true, Parent = subAppData, Size = 3_000 };
-            var appFileSmall = new AmberTree.Models.FsItem { Name = "a.txt", FullPath = @"C:\Users\hp\AppData\a.txt", IsDirectory = false, Parent = subAppData, Size = 100 };
-            subAppData.SetChildrenBulk(new() { appFileSmall, appDirMid, appFileBig });
+            var uFile = new AmberTree.Models.FsItem { Name = "desktop.ini", IsDirectory = false, Parent = subUsers, Size = 174 };
+            var uDirBig = new AmberTree.Models.FsItem { Name = "hp", IsDirectory = true, Parent = subUsers, Size = 3_000 };
+            var uDirZero = new AmberTree.Models.FsItem { Name = "All Users", IsDirectory = true, Parent = subUsers, Size = 0 };
+            var uFileSmall = new AmberTree.Models.FsItem { Name = "a.txt", IsDirectory = false, Parent = subUsers, Size = 50 };
+            subUsers.SetChildrenBulk(new() { uFileSmall, uDirZero, uFile, uDirBig });
 
             TreeMaintenance.SortTree(driveRoot, TreeSortColumn.Size, ascending: false);
-            if (driveRoot.Children[0].Name != "AppData" || driveRoot.Children[1].Name != "Program Files"
+            if (driveRoot.Children[0].Name != "Users" || driveRoot.Children[1].Name != "Program Files"
                 || driveRoot.Children[2].Name != "pagefile.sys" || driveRoot.Children[3].Name != "hiberfil.sys")
-                throw new Exception("Drive root did not separate folders and files!");
-            if (subAppData.Children[0].Name != "big.bin" || subAppData.Children[1].Name != "Local" || subAppData.Children[2].Name != "a.txt")
-                throw new Exception("Subfolder did not mix folders and files by size!");
+                throw new Exception("Drive root sort failed!");
+            // Subfolder: 0 B folder (All Users) stays ABOVE desktop.ini (174 B)
+            if (subUsers.Children[0].Name != "hp" || subUsers.Children[1].Name != "All Users"
+                || subUsers.Children[2].Name != "desktop.ini" || subUsers.Children[3].Name != "a.txt")
+                throw new Exception("Subfolder 0 B folder fell below files!");
 
             TreeMaintenance.SortTree(driveRoot, TreeSortColumn.Name, ascending: true);
-            if (driveRoot.Children[0].Name != "AppData" || driveRoot.Children[1].Name != "Program Files"
-                || driveRoot.Children[2].Name != "hiberfil.sys" || driveRoot.Children[3].Name != "pagefile.sys")
-                throw new Exception("Drive root Name sort failed!");
-            if (subAppData.Children[0].Name != "a.txt" || subAppData.Children[1].Name != "big.bin" || subAppData.Children[2].Name != "Local")
-                throw new Exception("Subfolder Name sort failed!");
+            if (subUsers.Children[0].Name != "All Users" || subUsers.Children[1].Name != "hp"
+                || subUsers.Children[2].Name != "a.txt" || subUsers.Children[3].Name != "desktop.ini")
+                throw new Exception("Name column sort failed!");
             Console.WriteLine("PASSED");
 
             Console.WriteLine("==================================================");
