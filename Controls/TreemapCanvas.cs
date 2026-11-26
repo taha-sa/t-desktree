@@ -163,11 +163,11 @@ public class TreemapCanvas : Canvas
         while (stack.Count > 0)
         {
             var n = stack.Pop();
-            if (!n.HasChildren) continue;
-            var col = n.Children;
-            for (int i = 0; i < col.Count; i++)
+            var arr = n.RawChildren;
+            if (arr == null) continue;
+            for (int i = 0; i < arr.Length; i++)
             {
-                var c = col[i];
+                var c = arr[i];
                 if (c.IsDirectory) stack.Push(c);
                 else sums[(int)c.Category] += c.Size;
             }
@@ -263,8 +263,9 @@ public class TreemapCanvas : Canvas
 
         var pal = BuildPalette();
 
-        var children = _currentItem.HasChildren
-            ? _currentItem.Children.Where(c => c.Size > 0).OrderByDescending(c => c.Size).ToList()
+        var raw = _currentItem.RawChildren;
+        var children = raw != null && raw.Length > 0
+            ? raw.Where(c => c.Size > 0).OrderByDescending(c => c.Size).ToList()
             : new List<FsItem>();
 
         if (children.Count == 0)

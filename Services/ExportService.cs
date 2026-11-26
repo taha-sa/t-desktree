@@ -24,9 +24,13 @@ public static class ExportService
             string path = EscapeCsv(item.FullPath);
             writer.WriteLine(FormattableString.Invariant($"{level},{name},{path},{type},{item.Size},{item.AllocatedSize},{item.PercentOfParent:F2}%,{item.PercentOfTotal:F2}%,{item.FileCount},{item.FolderCount},{item.LastModified:yyyy-MM-dd HH:mm:ss},{item.AttributesDisplay}"));
 
-            for (int i = item.Children.Count - 1; i >= 0; i--)
+            var arr = item.RawChildren;
+            if (arr != null)
             {
-                stack.Push((item.Children[i], level + 1));
+                for (int i = arr.Length - 1; i >= 0; i--)
+                {
+                    stack.Push((arr[i], level + 1));
+                }
             }
         }
     }
@@ -65,9 +69,13 @@ public static class ExportService
             writer.WriteLine($"{indent}{marker}[{sizeStr} | {pctStr}] {item.Name}");
 
             string childIndent = indent + (isLast ? "    " : "│   ");
-            for (int i = item.Children.Count - 1; i >= 0; i--)
+            var arr = item.RawChildren;
+            if (arr != null)
             {
-                stack.Push((item.Children[i], childIndent, i == item.Children.Count - 1));
+                for (int i = arr.Length - 1; i >= 0; i--)
+                {
+                    stack.Push((arr[i], childIndent, i == arr.Length - 1));
+                }
             }
         }
     }

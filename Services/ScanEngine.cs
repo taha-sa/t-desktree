@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime;
 using System.Threading;
 using System.Threading.Tasks;
 using AmberTree.Models;
@@ -46,14 +47,19 @@ public class ScanEngine
             IsExpanded = true
         };
 
+        // Önceki tarama/ön-yükleme kalıntılarını sıfırla
+        root.Size = 0;
+        root.AllocatedSize = 0;
+        root.FileCount = 0;
+        root.FolderCount = 0;
+
         int maxWorkers = Math.Clamp(Environment.ProcessorCount, 2, 8);
-        List<FsItem> rootChildren = new();
 
         try
         {
             await Task.Run(() =>
             {
-                rootChildren = ScanFolder(root, clusterSize, depth: 0, maxWorkers, cancellationToken);
+                ScanFolder(root, targetPath, clusterSize, depth: 0, maxWorkers, sortColumn, sortAscending, cancellationToken);
             }, cancellationToken);
         }
         catch (OperationCanceledException)
@@ -61,8 +67,12 @@ public class ScanEngine
             // İptal edilse bile mevcut taranan kısmı sıralayıp yüzdeleri hesapla
         }
 
-        FinalizeTree(root, rootChildren, root.Size, sortColumn, sortAscending);
+        FinalizeTree(root, root.Size, sortColumn, sortAscending);
         _stopwatch.Stop();
+
+        // Tarama sırasındaki geçici tamponları ve LOH parçalanmasını hemen geri ver
+        GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+        GC.Collect(2, GCCollectionMode.Aggressive, true, true);
 
         return new ScanResult
         {
@@ -79,22 +89,31 @@ public class ScanEngine
         };
     }
 
-    private List<FsItem> ScanFolder(FsItem folder, uint clusterSize, int depth, int maxWorkers, CancellationToken ct)
+    private void ScanFolder(
+        FsItem folder,
+        string folderPath,
+        uint clusterSize,
+        int depth,
+        int maxWorkers,
+        TreeSortColumn sortColumn,
+        bool sortAscending,
+        CancellationToken ct)
     {
-        var items = new List<FsItem>();
-        if (ct.IsCancellationRequested) return items;
+        if (ct.IsCancellationRequested) return;
 
         Interlocked.Increment(ref _foldersScanned);
-        ReportProgressThrottled(folder.FullPath);
+        ReportProgressThrottled(folderPath);
 
-        List<FsItem>? subFolders = null;
+        List<FsItem>? items = null;
+        List<(FsItem node, string path)>? subFolders = null;
         long directBytes = 0;
         long directAllocated = 0;
         long directFiles = 0;
+        long directFolders = 0;
 
         try
         {
-            string searchPattern = NativeFileSystem.ToSearchPattern(folder.FullPath);
+            string searchPattern = NativeFileSystem.ToSearchPattern(folderPath);
             IntPtr hFind = NativeFileSystem.FindFirstFileEx(
                 searchPattern,
                 1, // FindExInfoBasic
@@ -113,9 +132,9 @@ public class ScanEngine
                         string name = findData.cFileName;
                         if (name == "." || name == "..") continue;
 
+                        items ??= new List<FsItem>(16);
                         var attrs = (FileAttributes)findData.dwFileAttributes;
                         bool isDir = (attrs & FileAttributes.Directory) != 0;
-                        string childPath = Path.Combine(folder.FullPath, name);
                         DateTime modified = NativeFileSystem.FileTimeToDateTime(findData.ftLastWriteTime);
 
                         if (isDir)
@@ -123,17 +142,17 @@ public class ScanEngine
                             var dirNode = new FsItem
                             {
                                 Name = name,
-                                FullPath = childPath,
                                 IsDirectory = true,
                                 Attributes = attrs,
                                 LastModified = modified,
                                 Parent = folder
                             };
                             items.Add(dirNode);
+                            directFolders++;
                             if ((attrs & FileAttributes.ReparsePoint) == 0)
                             {
-                                subFolders ??= new List<FsItem>();
-                                subFolders.Add(dirNode);
+                                subFolders ??= new List<(FsItem, string)>(8);
+                                subFolders.Add((dirNode, Path.Combine(folderPath, name)));
                             }
                         }
                         else
@@ -143,7 +162,6 @@ public class ScanEngine
                             items.Add(new FsItem
                             {
                                 Name = name,
-                                FullPath = childPath,
                                 IsDirectory = false,
                                 Size = fileSize,
                                 AllocatedSize = allocated,
@@ -170,114 +188,89 @@ public class ScanEngine
             // Erişim reddedildi veya okunamayan dizin
         }
 
-        if (directFiles > 0)
+        // Doğrudan çocukları sıkı dizi olarak hemen bağla (tarama sırasında açılan klasörlerde canlı görünür)
+        if (items != null && items.Count > 0)
         {
-            Interlocked.Add(ref _filesScanned, directFiles);
-            Interlocked.Add(ref _bytesScanned, directBytes);
+            var arr = items.ToArray();
+            if (depth == 0)
+            {
+                TreeMaintenance.SortArray(arr, folderPath, sortColumn, sortAscending);
+            }
+            folder.SetChildArray(arr);
+            items = null; // List belleğini erken serbest bırak
+        }
+        else if (depth == 0)
+        {
+            folder.SetChildArray(null);
         }
 
-        long totalSize = directBytes;
-        long totalAllocated = directAllocated;
-        long totalFiles = directFiles;
-        long totalFolders = 0;
+        // Doğrudan dosya ve klasör artışlarını canlı olarak kök zincirine yansıt (sıfır çift sayım)
+        if (directBytes != 0 || directAllocated != 0 || directFiles != 0 || directFolders != 0)
+        {
+            if (directFiles > 0)
+            {
+                Interlocked.Add(ref _filesScanned, directFiles);
+                Interlocked.Add(ref _bytesScanned, directBytes);
+            }
+            for (var p = folder; p != null; p = p.Parent)
+            {
+                p.AddLiveDelta(directBytes, directAllocated, directFiles, directFolders);
+            }
+        }
 
         if (subFolders != null && subFolders.Count > 0 && !ct.IsCancellationRequested)
         {
             // İlk 2 derinlikte SSD/NVMe I/O paralelliği: alt ağaçları eşzamanlı tara
             if (depth < 2 && subFolders.Count > 1)
             {
-                var childLists = new List<FsItem>[subFolders.Count];
                 var opts = new ParallelOptions { MaxDegreeOfParallelism = maxWorkers };
                 Parallel.For(0, subFolders.Count, opts, i =>
                 {
                     if (ct.IsCancellationRequested) return;
-                    var sub = subFolders[i];
-                    childLists[i] = ScanFolder(sub, clusterSize, depth + 1, maxWorkers, ct);
+                    var (subNode, subPath) = subFolders[i];
+                    ScanFolder(subNode, subPath, clusterSize, depth + 1, maxWorkers, sortColumn, sortAscending, ct);
                 });
-
-                for (int i = 0; i < subFolders.Count; i++)
-                {
-                    var sub = subFolders[i];
-                    if (childLists[i] != null && childLists[i].Count > 0)
-                    {
-                        sub.SetChildrenBulk(childLists[i]);
-                    }
-                    totalSize += sub.Size;
-                    totalAllocated += sub.AllocatedSize;
-                    totalFiles += sub.FileCount;
-                    totalFolders += 1 + sub.FolderCount;
-                }
             }
             else
             {
                 for (int i = 0; i < subFolders.Count; i++)
                 {
                     if (ct.IsCancellationRequested) break;
-                    var sub = subFolders[i];
-                    var grandChildren = ScanFolder(sub, clusterSize, depth + 1, maxWorkers, ct);
-                    if (grandChildren.Count > 0)
-                    {
-                        sub.SetChildrenBulk(grandChildren);
-                    }
-                    totalSize += sub.Size;
-                    totalAllocated += sub.AllocatedSize;
-                    totalFiles += sub.FileCount;
-                    totalFolders += 1 + sub.FolderCount;
+                    var (subNode, subPath) = subFolders[i];
+                    ScanFolder(subNode, subPath, clusterSize, depth + 1, maxWorkers, sortColumn, sortAscending, ct);
                 }
             }
         }
-
-        // Bağlama noktaları (reparse points) klasör sayısına dahil edilir (döngü olmadan)
-        int nonReparseCount = subFolders?.Count ?? 0;
-        for (int i = 0; i < items.Count; i++)
-        {
-            if (items[i].IsDirectory && (items[i].Attributes & FileAttributes.ReparsePoint) != 0)
-            {
-                totalFolders++;
-            }
-        }
-
-        folder.Size = totalSize;
-        folder.AllocatedSize = totalAllocated;
-        folder.FileCount = totalFiles;
-        folder.FolderCount = totalFolders;
-        return items;
     }
 
-    private static void FinalizeTree(FsItem root, List<FsItem> rootChildren, long rootTotalSize, TreeSortColumn sortColumn, bool sortAscending)
+    private static void FinalizeTree(FsItem root, long rootTotalSize, TreeSortColumn sortColumn, bool sortAscending)
     {
         root.PercentOfParent = 100.0;
         root.PercentOfTotal = rootTotalSize > 0 ? 100.0 : 0.0;
 
-        // Kök alt öğelerinin yüzdelerini hesapla ve sırala, sonra tek Reset ile köke bağla
         var stack = new Stack<FsItem>(1024);
-        for (int i = 0; i < rootChildren.Count; i++)
-        {
-            var c = rootChildren[i];
-            c.PercentOfTotal = rootTotalSize > 0 ? (double)c.Size / rootTotalSize * 100.0 : 0.0;
-            c.PercentOfParent = root.Size > 0 ? (double)c.Size / root.Size * 100.0 : 0.0;
-            if (c.IsDirectory && c.HasChildren) stack.Push(c);
-        }
-        TreeMaintenance.SortList(rootChildren, root.FullPath, sortColumn, sortAscending);
-        root.SetChildrenBulk(rootChildren);
+        stack.Push(root);
 
         while (stack.Count > 0)
         {
             var dir = stack.Pop();
-            var col = dir.Children;
-            int count = col.Count;
+            var arr = dir.RawChildren;
+            if (arr == null || arr.Length == 0) continue;
+
             long parentSize = dir.Size;
-            var list = new List<FsItem>(count);
-            for (int i = 0; i < count; i++)
+            for (int i = 0; i < arr.Length; i++)
             {
-                var c = col[i];
+                var c = arr[i];
                 c.PercentOfTotal = rootTotalSize > 0 ? (double)c.Size / rootTotalSize * 100.0 : 0.0;
                 c.PercentOfParent = parentSize > 0 ? (double)c.Size / parentSize * 100.0 : 0.0;
-                list.Add(c);
                 if (c.IsDirectory && c.HasChildren) stack.Push(c);
             }
-            TreeMaintenance.SortList(list, dir.FullPath, sortColumn, sortAscending);
-            col.ReplaceAll(list);
+
+            if (arr.Length > 1)
+            {
+                TreeMaintenance.SortArray(arr, dir.FullPath, sortColumn, sortAscending);
+            }
+            dir.SyncObservableChildrenIfCreated();
         }
     }
 

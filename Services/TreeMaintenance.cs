@@ -27,9 +27,8 @@ public class TreeStatistics
 }
 
 /// <summary>
-/// Tarama bittikten sonra agac uzerinde yapilan bakim isleri: silme/yeniden tarama sonrasi
-/// ust zincir toplamlari, yuzdeler, siralama ve Uzanti/En buyuk/Yas istatistikleri.
-/// (Tarama algoritmasindan bagimsizdir.)
+/// Tarama sirasi ve sonrasi agac bakim isleri: siralama (surucu kokunde klasor/dosya ayri, alt klasorlerde karma),
+/// canli genisletilmis dugum yenileme, silme/yeniden tarama sonrasi ust zincir toplamlari ve istatistikler.
 /// </summary>
 public static class TreeMaintenance
 {
@@ -45,7 +44,7 @@ public static class TreeMaintenance
 
     /// <summary>
     /// Yolun bir sürücü kök dizini (ör. C:\, D:\) veya ağ paylaşım kökü olup olmadığını döndürür.
-    /// Ana sürücü dizininde klasörler ve dosyalar kendi içinde ayrı sıralanır;
+    /// Ana sürücü dizininde klasörler üstte (kendi içinde sıralı), dosyalar altta (kendi içinde sıralı);
     /// alt klasörlerde (ör. AppData) klasörler ve dosyalar birlikte sıralanır.
     /// </summary>
     public static bool IsDriveRoot(string? fullPath)
@@ -86,12 +85,18 @@ public static class TreeMaintenance
         if (!ascending) cmp = -cmp;
         if (cmp != 0) return cmp;
 
-        // Kararlı ikincil sıralama: boyut (azalan), sonra ad (artan)
         int sizeTie = b.Size.CompareTo(a.Size);
         return sizeTie != 0 ? sizeTie : StringComparer.OrdinalIgnoreCase.Compare(a.Name, b.Name);
     }
 
-    /// <summary>Verilen çocuk listesini yerinde O(N log N) sıralar.</summary>
+    /// <summary>Çocuk dizisini yerinde, ek bellek ayırmadan O(N log N) sıralar.</summary>
+    public static void SortArray(FsItem[] items, string? parentFullPath, TreeSortColumn column = TreeSortColumn.Size, bool ascending = false)
+    {
+        if (items.Length <= 1) return;
+        bool splitDirsAndFiles = IsDriveRoot(parentFullPath);
+        Array.Sort(items, (a, b) => CompareItems(a, b, column, ascending, splitDirsAndFiles));
+    }
+
     public static void SortList(List<FsItem> items, string? parentFullPath, TreeSortColumn column = TreeSortColumn.Size, bool ascending = false)
     {
         if (items.Count <= 1) return;
@@ -103,8 +108,8 @@ public static class TreeMaintenance
     public static bool RemoveFromTree(FsItem item)
     {
         var parent = item.Parent;
-        if (parent == null || !parent.HasChildren) return false;
-        if (!parent.Children.Remove(item)) return false;
+        if (parent == null) return false;
+        if (!parent.RemoveChild(item)) return false;
         ApplyDeltaToAncestors(parent, -item.Size, -item.AllocatedSize, -item.FileCount,
             -(item.IsDirectory ? item.FolderCount + 1 : 0));
         item.Parent = null;
@@ -124,11 +129,11 @@ public static class TreeMaintenance
         }
     }
 
-    /// <summary>Tum agacin % degerlerini yeniden hesaplar (siralamaz).</summary>
+    /// <summary>Tum agacin % degerlerini yeniden hesaplar (siralamaz, UI koleksiyonu uretmez).</summary>
     public static void RecalculatePercentages(FsItem root)
     {
         long total = root.Size;
-        var stack = new Stack<FsItem>();
+        var stack = new Stack<FsItem>(256);
         stack.Push(root);
         while (stack.Count > 0)
         {
@@ -137,47 +142,60 @@ public static class TreeMaintenance
             item.PercentOfParent = item.Parent != null && item.Parent.Size > 0
                 ? (double)item.Size / item.Parent.Size * 100.0
                 : 100.0;
-            if (item.HasChildren)
+            var arr = item.RawChildren;
+            if (arr != null)
             {
-                foreach (var c in item.Children) stack.Push(c);
+                for (int i = 0; i < arr.Length; i++) stack.Push(arr[i]);
             }
         }
     }
 
     /// <summary>
-    /// Çocukları belirtilen sütun ve yöne göre O(N log N) sıralar ve tek Reset bildirimiyle uygular.
-    /// Ana sürücü dizininde (C:\, D:\) klasörler önce, dosyalar ayrı sıralanır;
-    /// alt klasörlerde klasörler ve dosyalar karma olarak birlikte sıralanır.
+    /// Tarama devam ederken yalnızca açık (genişletilmiş) klasörlerin görünen alt öğelerini
+    /// canlı olarak günceller (boyut/dosya/klasör/yüzde) ve aktif sıralama kuralına göre sıralar.
+    /// </summary>
+    public static void RefreshLiveExpandedTree(FsItem? root, TreeSortColumn column, bool ascending)
+    {
+        if (root == null) return;
+        long totalSize = root.Size;
+        root.PercentOfParent = 100.0;
+        root.PercentOfTotal = totalSize > 0 ? 100.0 : 0.0;
+        root.NotifySizesChanged();
+
+        var stack = new Stack<FsItem>(16);
+        if (root.IsExpanded) stack.Push(root);
+
+        while (stack.Count > 0)
+        {
+            var dir = stack.Pop();
+            var arr = dir.RawChildren;
+            if (arr == null || arr.Length == 0) continue;
+
+            long parentSize = dir.Size;
+            for (int i = 0; i < arr.Length; i++)
+            {
+                var c = arr[i];
+                c.PercentOfParent = parentSize > 0 ? (double)c.Size / parentSize * 100.0 : 0.0;
+                c.PercentOfTotal = totalSize > 0 ? (double)c.Size / totalSize * 100.0 : 0.0;
+                c.NotifySizesChanged();
+                if (c.IsDirectory && c.IsExpanded) stack.Push(c);
+            }
+
+            SortChildren(dir, column, ascending);
+        }
+    }
+
+    /// <summary>
+    /// Çocukları belirtilen sütun ve yöne göre yerinde O(N log N) sıralar;
+    /// UI koleksiyonu yalnızca bağlıysa tek Reset ile eşitler (kapalı 1M klasörde 0 WPF maliyeti).
     /// </summary>
     public static void SortChildren(FsItem node, TreeSortColumn column, bool ascending)
     {
-        if (!node.HasChildren) return;
-        lock (node.SyncLock)
-        {
-            var col = node.Children;
-            int count = col.Count;
-            if (count <= 1) return;
-
-            var desired = new List<FsItem>(count);
-            for (int i = 0; i < count; i++) desired.Add(col[i]);
-
-            SortList(desired, node.FullPath, column, ascending);
-
-            bool changed = false;
-            for (int i = 0; i < count; i++)
-            {
-                if (!ReferenceEquals(col[i], desired[i]))
-                {
-                    changed = true;
-                    break;
-                }
-            }
-
-            if (changed)
-            {
-                col.ReplaceAll(desired);
-            }
-        }
+        var arr = node.RawChildren;
+        if (arr == null || arr.Length <= 1) return;
+        bool splitDirsAndFiles = IsDriveRoot(node.FullPath);
+        Array.Sort(arr, (a, b) => CompareItems(a, b, column, ascending, splitDirsAndFiles));
+        node.SyncObservableChildrenIfCreated();
     }
 
     public static void SortChildren(FsItem node) => SortChildren(node, ActiveSortColumn, ActiveSortAscending);
@@ -189,32 +207,29 @@ public static class TreeMaintenance
         ActiveSortColumn = column;
         ActiveSortAscending = ascending;
 
-        var stack = new Stack<FsItem>();
+        var stack = new Stack<FsItem>(256);
         stack.Push(root);
         while (stack.Count > 0)
         {
             var node = stack.Pop();
-            if (!node.HasChildren) continue;
-            SortChildren(node, column, ascending);
-            var col = node.Children;
-            for (int i = 0; i < col.Count; i++)
+            var arr = node.RawChildren;
+            if (arr == null || arr.Length == 0) continue;
+            if (arr.Length > 1) SortChildren(node, column, ascending);
+            for (int i = 0; i < arr.Length; i++)
             {
-                var c = col[i];
+                var c = arr[i];
                 if (c.IsDirectory && c.HasChildren) stack.Push(c);
             }
         }
     }
 
-    /// <summary>Geriye dönük uyumluluk: SortChildren metodunu çağırır.</summary>
     public static void SortChildrenBySize(FsItem node) => SortChildren(node, TreeSortColumn.Size, false);
 
-    /// <summary>item'dan koke kadar her dugumun cocuk sirasini aktif siralamaya gore yeniler.</summary>
     public static void ResortChain(FsItem? item)
     {
         for (var n = item; n != null; n = n.Parent) SortChildren(n, ActiveSortColumn, ActiveSortAscending);
     }
 
-    /// <summary>Verilen yolu kokten asagi inerek bulur.</summary>
     public static FsItem? FindByPath(FsItem? root, string fullPath)
     {
         if (root == null || string.IsNullOrEmpty(fullPath)) return null;
@@ -222,11 +237,14 @@ public static class TreeMaintenance
         var cur = root;
         if (string.Equals(Normalize(cur.FullPath), target, StringComparison.OrdinalIgnoreCase)) return cur;
 
-        while (cur.HasChildren)
+        while (true)
         {
+            var arr = cur.RawChildren;
+            if (arr == null || arr.Length == 0) return null;
             FsItem? next = null;
-            foreach (var c in cur.Children)
+            for (int i = 0; i < arr.Length; i++)
             {
+                var c = arr[i];
                 string cp = Normalize(c.FullPath);
                 if (string.Equals(cp, target, StringComparison.OrdinalIgnoreCase)) return c;
                 if (c.IsDirectory && target.StartsWith(cp + "\\", StringComparison.OrdinalIgnoreCase))
@@ -238,7 +256,6 @@ public static class TreeMaintenance
             if (next == null) return null;
             cur = next;
         }
-        return null;
     }
 
     private static string Normalize(string p) => p.Length > 3 ? p.TrimEnd('\\', '/') : p;
@@ -250,7 +267,7 @@ public static class TreeMaintenance
         return false;
     }
 
-    /// <summary>Agactan Uzanti / En buyuk 100 / Yas dagilimi istatistiklerini yeniden uretir.</summary>
+    /// <summary>Agactan Uzanti / En buyuk 100 / Yas dagilimi istatistiklerini UI koleksiyonu olusturmadan uretir.</summary>
     public static TreeStatistics ComputeStatistics(FsItem? root, DateTime now)
     {
         var stats = new TreeStatistics();
@@ -270,10 +287,10 @@ public static class TreeMaintenance
                 var node = stack.Pop();
                 if (node.IsDirectory)
                 {
-                    if (node.HasChildren)
+                    var arr = node.RawChildren;
+                    if (arr != null)
                     {
-                        var col = node.Children;
-                        for (int i = 0; i < col.Count; i++) stack.Push(col[i]);
+                        for (int i = 0; i < arr.Length; i++) stack.Push(arr[i]);
                     }
                     continue;
                 }

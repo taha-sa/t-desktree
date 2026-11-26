@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -322,6 +323,18 @@ public class MftScanEngine
 
         PopulateAndSortFsItemTree(targetMftNode, rootItem, targetPath, targetMftNode.Size, sortColumn, sortAscending, new HashSet<ulong>());
 
+        long finalFiles = targetMftNode.FileCount;
+        long finalFolders = targetMftNode.FolderCount;
+
+        // Geçici MFT düğüm haritasını derhal serbest bırakıp Gen2/LOH sıkıştır (RAM'i minimuma indir)
+        nodes.Clear();
+        nodes = null!;
+        rootNode = null!;
+        targetMftNode = null!;
+        readBuffer = null!;
+        GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+        GC.Collect(2, GCCollectionMode.Aggressive, true, true);
+
         _stopwatch.Stop();
 
         return new ScanResult
@@ -331,8 +344,8 @@ public class MftScanEngine
             TopFiles = new List<TopFileItem>(),
             AgeDistribution = new List<AgeDistributionItem>(),
             Elapsed = _stopwatch.Elapsed,
-            TotalFiles = targetMftNode.FileCount,
-            TotalFolders = targetMftNode.FolderCount,
+            TotalFiles = finalFiles,
+            TotalFolders = finalFolders,
             TotalSize = rootItem.Size,
             TotalAllocated = rootItem.AllocatedSize,
             WasCancelled = ct.IsCancellationRequested
@@ -631,16 +644,15 @@ public class MftScanEngine
         if (mftNode.Children == null || mftNode.Children.Count == 0) return;
 
         long parentSize = mftNode.Size;
-        var children = new List<FsItem>(mftNode.Children.Count);
+        int count = mftNode.Children.Count;
+        var children = new FsItem[count];
 
-        for (int i = 0; i < mftNode.Children.Count; i++)
+        for (int i = 0; i < count; i++)
         {
             var child = mftNode.Children[i];
-            string childPath = Path.Combine(currentPath, child.Name);
             var item = new FsItem
             {
                 Name = child.Name,
-                FullPath = childPath,
                 IsDirectory = child.IsDirectory,
                 Size = child.Size,
                 AllocatedSize = child.AllocatedSize,
@@ -655,13 +667,16 @@ public class MftScanEngine
 
             if (child.IsDirectory && child.Children != null && child.Children.Count > 0)
             {
-                PopulateAndSortFsItemTree(child, item, childPath, rootTotalSize, sortColumn, sortAscending, visited);
+                PopulateAndSortFsItemTree(child, item, Path.Combine(currentPath, child.Name), rootTotalSize, sortColumn, sortAscending, visited);
             }
-            children.Add(item);
+            children[i] = item;
         }
 
-        TreeMaintenance.SortList(children, currentPath, sortColumn, sortAscending);
-        fsItem.SetChildrenBulk(children);
+        // Geçici MFT çocuk listesini dönüştürür dönüştürmez serbest bırak
+        mftNode.Children = null;
+
+        TreeMaintenance.SortArray(children, currentPath, sortColumn, sortAscending);
+        fsItem.SetChildArray(children);
     }
 
     private void ReportProgressThrottled(string currentPath)

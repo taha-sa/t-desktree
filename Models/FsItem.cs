@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Windows.Data;
@@ -11,50 +12,158 @@ using AmberTree.Services;
 
 namespace AmberTree.Models;
 
+/// <summary>
+/// Ultra-düşük bellekli dosya/klasör düğümü:
+/// - Alt düğümler FullPath dizgesi saklamaz (Parent zincirinden anlık üretilir -> milyonlarca düğümde ~450 MB tasarruf).
+/// - Çocuklar sıkı FsItem[] dizisinde tutulur; WPF ObservableCollection ve kilit kaydı yalnızca UI'da gerçekten
+///   görüntülenen/genişletilen klasörler için tembel oluşturulur (~350 MB tasarruf).
+/// </summary>
 public class FsItem : INotifyPropertyChanged
 {
     private static readonly BulkObservableCollection<FsItem> EmptyChildren = new();
 
-    private object? _childrenLock;
+    private const byte FlagDirectory = 1;
+    private const byte FlagExpanded = 2;
+    private const byte FlagSelected = 4;
+    private const byte FlagFilteredOut = 8;
+
+    private string? _explicitPath;
+    private FsItem? _parent;
+    private FsItem[]? _childArray;
     private BulkObservableCollection<FsItem>? _children;
-    private bool _isExpanded;
-    private bool _isSelected;
-    private bool _isFilteredOut;
-    private double _percentOfParent;
-    private double _percentOfTotal;
+    private object? _childrenLock;
+    private long _size;
+    private long _allocatedSize;
+    private long _fileCount;
+    private long _folderCount;
+    private float _percentOfParent;
+    private float _percentOfTotal;
+    private byte _flags;
 
     public string Name { get; set; } = string.Empty;
-    public string FullPath { get; set; } = string.Empty;
-    public bool IsDirectory { get; set; }
-    public long Size { get; set; }
-    public long AllocatedSize { get; set; }
-    public long FileCount { get; set; }
-    public long FolderCount { get; set; }
     public DateTime LastModified { get; set; }
     public FileAttributes Attributes { get; set; }
 
+    public string FullPath
+    {
+        get
+        {
+            if (_explicitPath != null) return _explicitPath;
+            if (_parent == null) return Name;
+            return BuildFullPath();
+        }
+        set
+        {
+            // Yalnızca kök veya bağımsız (Parent == null) düğümlerde yol saklanır; alt düğümler bellek yemez.
+            _explicitPath = _parent == null ? value : null;
+        }
+    }
+
+    private string BuildFullPath()
+    {
+        // Yinelemeli ve düşük tahsisli yol birleştirme (derinlik genelde 4-10)
+        int depth = 0;
+        for (var n = this; n != null; n = n._parent) depth++;
+        var parts = new string[depth];
+        int i = depth - 1;
+        for (var n = this; n != null; n = n._parent)
+        {
+            parts[i--] = n._parent == null ? (n._explicitPath ?? n.Name) : n.Name;
+        }
+        var sb = new StringBuilder(128);
+        for (int k = 0; k < parts.Length; k++)
+        {
+            string p = parts[k];
+            if (string.IsNullOrEmpty(p)) continue;
+            if (sb.Length > 0 && sb[^1] != '\\' && sb[^1] != '/') sb.Append('\\');
+            sb.Append(p);
+        }
+        return sb.ToString();
+    }
+
+    public bool IsDirectory
+    {
+        get => (_flags & FlagDirectory) != 0;
+        set { if (value) _flags |= FlagDirectory; else _flags &= unchecked((byte)~FlagDirectory); }
+    }
+
+    public long Size
+    {
+        get => Volatile.Read(ref _size);
+        set => Volatile.Write(ref _size, value);
+    }
+
+    public long AllocatedSize
+    {
+        get => Volatile.Read(ref _allocatedSize);
+        set => Volatile.Write(ref _allocatedSize, value);
+    }
+
+    public long FileCount
+    {
+        get => Volatile.Read(ref _fileCount);
+        set => Volatile.Write(ref _fileCount, value);
+    }
+
+    public long FolderCount
+    {
+        get => Volatile.Read(ref _folderCount);
+        set => Volatile.Write(ref _folderCount, value);
+    }
+
+    /// <summary>Paralel tarama sırasında kilitsiz canlı boyut/sayaç artışı.</summary>
+    internal void AddLiveDelta(long sizeDelta, long allocDelta, long fileDelta, long folderDelta)
+    {
+        if (sizeDelta != 0) Interlocked.Add(ref _size, sizeDelta);
+        if (allocDelta != 0) Interlocked.Add(ref _allocatedSize, allocDelta);
+        if (fileDelta != 0) Interlocked.Add(ref _fileCount, fileDelta);
+        if (folderDelta != 0) Interlocked.Add(ref _folderCount, folderDelta);
+    }
+
     [JsonIgnore]
-    public FsItem? Parent { get; set; }
+    public FsItem? Parent
+    {
+        get => _parent;
+        set
+        {
+            _parent = value;
+            if (value != null) _explicitPath = null; // Alt düğüm olduysa açık yolu bırak (RAM tasarrufu)
+        }
+    }
+
+    /// <summary>Ham, sıkı çocuk dizisi (UI koleksiyonu oluşturmadan tarama/sıralama/istatistik için).</summary>
+    [JsonIgnore]
+    internal FsItem[]? RawChildren => Volatile.Read(ref _childArray);
 
     /// <summary>
-    /// Dosyalar için paylaşılan boş koleksiyon döner (yüz binlerce gereksiz koleksiyon ve WPF kilit kaydını önler).
-    /// Klasörler için yalnızca gerektiğinde tek seferde oluşturulur.
+    /// WPF ağaç bağlantısı için tembel ObservableCollection.
+    /// Dosyalar için paylaşılan boş koleksiyon döner; klasörler için yalnızca UI bağlandığında oluşturulur.
     /// </summary>
     public BulkObservableCollection<FsItem> Children
     {
         get
         {
-            if (_children != null) return _children;
+            var col = Volatile.Read(ref _children);
+            if (col != null) return col;
             if (!IsDirectory) return EmptyChildren;
             return EnsureChildren();
         }
     }
 
     [JsonIgnore]
-    public bool HasChildren => _children != null && _children.Count > 0;
+    public bool HasChildren
+    {
+        get
+        {
+            var arr = Volatile.Read(ref _childArray);
+            if (arr != null && arr.Length > 0) return true;
+            var col = Volatile.Read(ref _children);
+            return col != null && col.Count > 0;
+        }
+    }
 
     [JsonIgnore]
-    public bool IsSubfolder => IsDirectory && Parent != null;
+    public bool IsSubfolder => IsDirectory && _parent != null;
 
     [JsonIgnore]
     public int Depth
@@ -62,7 +171,7 @@ public class FsItem : INotifyPropertyChanged
         get
         {
             int d = 0;
-            for (var p = Parent; p != null; p = p.Parent) d++;
+            for (var p = _parent; p != null; p = p._parent) d++;
             return d;
         }
     }
@@ -92,7 +201,10 @@ public class FsItem : INotifyPropertyChanged
         {
             if (_children == null)
             {
-                var col = new BulkObservableCollection<FsItem>();
+                var arr = Volatile.Read(ref _childArray);
+                var col = arr != null && arr.Length > 0
+                    ? new BulkObservableCollection<FsItem>(arr)
+                    : new BulkObservableCollection<FsItem>();
                 BindingOperations.EnableCollectionSynchronization(col, lk);
                 Volatile.Write(ref _children, col);
             }
@@ -100,26 +212,112 @@ public class FsItem : INotifyPropertyChanged
         }
     }
 
-    internal void SetChildrenBulk(List<FsItem> items)
+    /// <summary>Çocuk dizisini sıkı dizi olarak atar; UI koleksiyonu zaten bağlıysa tek Reset ile eşitler.</summary>
+    internal void SetChildArray(FsItem[]? items)
     {
-        if (items.Count == 0 && _children == null) return;
-        var col = EnsureChildren();
+        var clean = items == null || items.Length == 0 ? null : items;
+        Volatile.Write(ref _childArray, clean);
+        var col = Volatile.Read(ref _children);
+        if (col != null)
+        {
+            lock (SyncLock)
+            {
+                col.ReplaceAll(clean ?? Array.Empty<FsItem>());
+            }
+        }
+    }
+
+    internal void SetChildrenBulk(List<FsItem> items)
+        => SetChildArray(items.Count == 0 ? null : items.ToArray());
+
+    /// <summary>UI koleksiyonu bağlıysa ve sıra/sayı değiştiyse tek Reset ile günceller.</summary>
+    internal bool SyncObservableChildrenIfCreated()
+    {
+        var col = Volatile.Read(ref _children);
+        if (col == null) return false;
+        var arr = Volatile.Read(ref _childArray) ?? Array.Empty<FsItem>();
         lock (SyncLock)
         {
-            col.ReplaceAll(items);
+            bool changed = col.Count != arr.Length;
+            if (!changed)
+            {
+                for (int i = 0; i < arr.Length; i++)
+                {
+                    if (!ReferenceEquals(col[i], arr[i])) { changed = true; break; }
+                }
+            }
+            if (changed) col.ReplaceAll(arr);
+            return changed;
         }
+    }
+
+    internal bool RemoveChild(FsItem child)
+    {
+        var arr = Volatile.Read(ref _childArray);
+        bool removed = false;
+        if (arr != null)
+        {
+            int idx = Array.IndexOf(arr, child);
+            if (idx >= 0)
+            {
+                if (arr.Length == 1)
+                {
+                    Volatile.Write(ref _childArray, null);
+                }
+                else
+                {
+                    var next = new FsItem[arr.Length - 1];
+                    if (idx > 0) Array.Copy(arr, 0, next, 0, idx);
+                    if (idx < arr.Length - 1) Array.Copy(arr, idx + 1, next, idx, arr.Length - idx - 1);
+                    Volatile.Write(ref _childArray, next);
+                }
+                removed = true;
+            }
+        }
+        var col = Volatile.Read(ref _children);
+        if (col != null)
+        {
+            lock (SyncLock) { removed |= col.Remove(child); }
+        }
+        return removed;
+    }
+
+    internal bool ReplaceChild(FsItem oldItem, FsItem newItem)
+    {
+        var arr = Volatile.Read(ref _childArray);
+        bool replaced = false;
+        if (arr != null)
+        {
+            int idx = Array.IndexOf(arr, oldItem);
+            if (idx >= 0)
+            {
+                arr[idx] = newItem;
+                replaced = true;
+            }
+        }
+        var col = Volatile.Read(ref _children);
+        if (col != null)
+        {
+            lock (SyncLock)
+            {
+                int idx = col.IndexOf(oldItem);
+                if (idx >= 0) { col[idx] = newItem; replaced = true; }
+            }
+        }
+        return replaced;
     }
 
     public bool IsExpanded
     {
-        get => _isExpanded;
+        get => (_flags & FlagExpanded) != 0;
         set
         {
-            if (_isExpanded != value)
+            bool cur = (_flags & FlagExpanded) != 0;
+            if (cur != value)
             {
-                _isExpanded = value;
+                if (value) _flags |= FlagExpanded; else _flags &= unchecked((byte)~FlagExpanded);
                 OnPropertyChanged();
-                if (value && IsDirectory)
+                if (value && IsDirectory && !HasChildren)
                 {
                     EnsureDirectChildrenLoaded();
                 }
@@ -129,12 +327,13 @@ public class FsItem : INotifyPropertyChanged
 
     public bool IsSelected
     {
-        get => _isSelected;
+        get => (_flags & FlagSelected) != 0;
         set
         {
-            if (_isSelected != value)
+            bool cur = (_flags & FlagSelected) != 0;
+            if (cur != value)
             {
-                _isSelected = value;
+                if (value) _flags |= FlagSelected; else _flags &= unchecked((byte)~FlagSelected);
                 OnPropertyChanged();
             }
         }
@@ -142,12 +341,13 @@ public class FsItem : INotifyPropertyChanged
 
     public bool IsFilteredOut
     {
-        get => _isFilteredOut;
+        get => (_flags & FlagFilteredOut) != 0;
         set
         {
-            if (_isFilteredOut != value)
+            bool cur = (_flags & FlagFilteredOut) != 0;
+            if (cur != value)
             {
-                _isFilteredOut = value;
+                if (value) _flags |= FlagFilteredOut; else _flags &= unchecked((byte)~FlagFilteredOut);
                 OnPropertyChanged();
             }
         }
@@ -158,9 +358,10 @@ public class FsItem : INotifyPropertyChanged
         get => _percentOfParent;
         set
         {
-            if (Math.Abs(_percentOfParent - value) > 0.001)
+            float v = (float)value;
+            if (Math.Abs(_percentOfParent - v) > 0.01f)
             {
-                _percentOfParent = value;
+                _percentOfParent = v;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(PercentOfParentDisplay));
             }
@@ -172,27 +373,19 @@ public class FsItem : INotifyPropertyChanged
         get => _percentOfTotal;
         set
         {
-            if (Math.Abs(_percentOfTotal - value) > 0.001)
+            float v = (float)value;
+            if (Math.Abs(_percentOfTotal - v) > 0.01f)
             {
-                _percentOfTotal = value;
+                _percentOfTotal = v;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(PercentOfTotalDisplay));
             }
         }
     }
 
-    private FileCategory? _category;
-
-    /// <summary>Dosya turu kategorisi (tembel hesaplanir). Klasorler icin anlamli degildir; IsDirectory'ye bakin.</summary>
+    /// <summary>Dosya turu kategorisi (alan saklamaz, yalnizca Treemap ciziminde hesaplanir).</summary>
     [JsonIgnore]
-    public FileCategory Category
-    {
-        get
-        {
-            _category ??= IsDirectory ? default(FileCategory) : FileCategoryMap.FromExtension(Path.GetExtension(Name));
-            return _category.Value;
-        }
-    }
+    public FileCategory Category => IsDirectory ? default : FileCategoryMap.FromExtension(Path.GetExtension(Name));
 
     [JsonIgnore]
     public string SizeDisplay => SizeFormatter.FormatBytes(Size, SizeFormatter.CurrentMode);
@@ -241,13 +434,15 @@ public class FsItem : INotifyPropertyChanged
 
     public void EnsureDirectChildrenLoaded(uint? knownClusterSize = null)
     {
-        if (!IsDirectory || string.IsNullOrEmpty(FullPath)) return;
+        if (!IsDirectory) return;
+        string path = FullPath;
+        if (string.IsNullOrEmpty(path)) return;
         lock (SyncLock)
         {
             if (HasChildren) return;
             try
             {
-                string searchPattern = NativeFileSystem.ToSearchPattern(FullPath);
+                string searchPattern = NativeFileSystem.ToSearchPattern(path);
                 IntPtr hFind = NativeFileSystem.FindFirstFileEx(
                     searchPattern,
                     1, // FindExInfoBasic
@@ -259,7 +454,7 @@ public class FsItem : INotifyPropertyChanged
                 if (hFind == IntPtr.Zero || hFind.ToInt64() == -1) return;
 
                 var items = new List<FsItem>();
-                uint clusterSize = knownClusterSize ?? NativeFileSystem.GetClusterSize(FullPath);
+                uint clusterSize = knownClusterSize ?? NativeFileSystem.GetClusterSize(path);
 
                 try
                 {
@@ -270,7 +465,6 @@ public class FsItem : INotifyPropertyChanged
 
                         var attrs = (FileAttributes)findData.dwFileAttributes;
                         bool isDir = (attrs & FileAttributes.Directory) != 0;
-                        string childPath = Path.Combine(FullPath, name);
                         DateTime modified = NativeFileSystem.FileTimeToDateTime(findData.ftLastWriteTime);
 
                         if (isDir)
@@ -278,7 +472,6 @@ public class FsItem : INotifyPropertyChanged
                             items.Add(new FsItem
                             {
                                 Name = name,
-                                FullPath = childPath,
                                 IsDirectory = true,
                                 Attributes = attrs,
                                 LastModified = modified,
@@ -292,7 +485,6 @@ public class FsItem : INotifyPropertyChanged
                             items.Add(new FsItem
                             {
                                 Name = name,
-                                FullPath = childPath,
                                 IsDirectory = false,
                                 Size = fileSize,
                                 AllocatedSize = allocated,
@@ -312,8 +504,9 @@ public class FsItem : INotifyPropertyChanged
 
                 if (items.Count > 0)
                 {
-                    TreeMaintenance.SortList(items, FullPath, TreeMaintenance.ActiveSortColumn, TreeMaintenance.ActiveSortAscending);
-                    EnsureChildren().ReplaceAll(items);
+                    var arr = items.ToArray();
+                    TreeMaintenance.SortArray(arr, path, TreeMaintenance.ActiveSortColumn, TreeMaintenance.ActiveSortAscending);
+                    SetChildArray(arr);
                 }
             }
             catch

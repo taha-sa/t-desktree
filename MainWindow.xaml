@@ -6,8 +6,8 @@
         xmlns:views="clr-namespace:AmberTree.Views"
         Title="T-DeskTree" Icon="/T-DeskTree;component/app.ico" MinWidth="860" MinHeight="520"
         Background="{DynamicResource Brush.Bg.Base}"
-        FontFamily="{DynamicResource Font.UI}" FontSize="13"
-        TextOptions.TextFormattingMode="Display" UseLayoutRounding="True">
+        FontFamily="{DynamicResource Font.UI}" FontSize="13.5"
+        TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType" UseLayoutRounding="True">
 
     <shell:WindowChrome.WindowChrome>
         <shell:WindowChrome CaptionHeight="40" ResizeBorderThickness="6" GlassFrameThickness="0"

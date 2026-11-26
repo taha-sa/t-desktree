@@ -68,6 +68,7 @@ public class MainWindowViewModel : INotifyPropertyChanged
     private bool _isSortAscending = false;
     private ScanProgress? _latestProgress;
     private int _progressQueued;
+    private long _lastLiveTreeRefreshMs;
 
     public ObservableCollection<DriveInfoModel> Drives { get; } = new();
     public ObservableCollection<FsItem> RootCollection { get; } = new();
@@ -715,11 +716,26 @@ public class MainWindowViewModel : INotifyPropertyChanged
 
             if (RootItem != null)
             {
-                RootItem.Size = latest.BytesScanned;
-                RootItem.AllocatedSize = latest.BytesScanned;
-                RootItem.FileCount = latest.FilesScanned;
-                RootItem.FolderCount = latest.FoldersScanned;
-                RootItem.NotifySizesChanged();
+                // MFT okuması sırasında kök henüz dolmadıysa ham tarama sayaçlarını kökte göster
+                if (RootItem.Size < latest.BytesScanned)
+                {
+                    RootItem.Size = latest.BytesScanned;
+                    RootItem.AllocatedSize = latest.BytesScanned;
+                    RootItem.FileCount = latest.FilesScanned;
+                    RootItem.FolderCount = latest.FoldersScanned;
+                }
+
+                // Tarama devam ederken açık klasörlerin boyut/sayaç artışını ve sıralamasını canlı yenile (~350 ms)
+                long nowMs = Environment.TickCount64;
+                if (nowMs - _lastLiveTreeRefreshMs >= 350)
+                {
+                    _lastLiveTreeRefreshMs = nowMs;
+                    TreeMaintenance.RefreshLiveExpandedTree(RootItem, _currentSortColumn, _isSortAscending);
+                }
+                else
+                {
+                    RootItem.NotifySizesChanged();
+                }
             }
 
             RaiseSummary();
@@ -752,6 +768,7 @@ public class MainWindowViewModel : INotifyPropertyChanged
         ResetCounters();
         ClearResults();
 
+        _lastLiveTreeRefreshMs = 0;
         var dirInfo = new DirectoryInfo(scanPath);
         RootItem = new FsItem
         {
@@ -1059,8 +1076,7 @@ public class MainWindowViewModel : INotifyPropertyChanged
 
             var parent = item.Parent;
             var fresh = result.Root;
-            int index = parent == null ? -1 : parent.Children.IndexOf(item);
-            if (parent == null || index < 0)
+            if (parent == null)
             {
                 StatusText = Strings.FolderNotInTree;
                 return;
@@ -1071,7 +1087,11 @@ public class MainWindowViewModel : INotifyPropertyChanged
 
             fresh.Parent = parent;
             fresh.IsExpanded = item.IsExpanded;
-            parent.Children[index] = fresh;
+            if (!parent.ReplaceChild(item, fresh))
+            {
+                StatusText = Strings.FolderNotInTree;
+                return;
+            }
 
             TreeMaintenance.ApplyDeltaToAncestors(parent,
                 fresh.Size - item.Size,
@@ -1206,10 +1226,9 @@ public class MainWindowViewModel : INotifyPropertyChanged
         {
             var node = stack.Pop();
             order.Add(node);
-            if (node.HasChildren)
+            if (node.RawChildren is { Length: > 0 } arr)
             {
-                var col = node.Children;
-                for (int c = 0; c < col.Count; c++) stack.Push(col[c]);
+                for (int c = 0; c < arr.Length; c++) stack.Push(arr[c]);
             }
         }
         for (int i = order.Count - 1; i >= 0; i--)
@@ -1217,12 +1236,11 @@ public class MainWindowViewModel : INotifyPropertyChanged
             var node = order[i];
             bool matches = isEmpty || node.Name.Contains(query, StringComparison.OrdinalIgnoreCase);
             bool anyChildMatches = false;
-            if (node.HasChildren)
+            if (node.RawChildren is { Length: > 0 } arr)
             {
-                var col = node.Children;
-                for (int c = 0; c < col.Count; c++)
+                for (int c = 0; c < arr.Length; c++)
                 {
-                    if (!col[c].IsFilteredOut)
+                    if (!arr[c].IsFilteredOut)
                     {
                         anyChildMatches = true;
                         break;
@@ -1255,10 +1273,9 @@ public class MainWindowViewModel : INotifyPropertyChanged
             {
                 var n = stack.Pop();
                 n.NotifyUnitChanged();
-                if (n.HasChildren)
+                if (n.RawChildren is { Length: > 0 } arr)
                 {
-                    var col = n.Children;
-                    for (int i = 0; i < col.Count; i++) stack.Push(col[i]);
+                    for (int i = 0; i < arr.Length; i++) stack.Push(arr[i]);
                 }
             }
         }
