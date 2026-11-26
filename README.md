@@ -1,6 +1,19 @@
 # T-DeskTree (AmberTree)
 
-WPF disk alanı analizi (Graphite / Aurora). Sürüm 1.1.0.
+WPF disk alanı analizi (Graphite / Aurora). Sürüm 1.2.0.
+
+## Dil ve yasal bilgiler
+TR/EN/DE arayüz; İngilizce nötr kaynaklar `Localization/Strings.resx` içindedir.
+Hakkında ekranından sistem dili, Türkçe, English veya Deutsch seçilir. Değişiklik
+yeniden başlatmada uygulanır; Windows bölgesel biçimleri sistem modunda korunur.
+T-Bridge daveti her seferinde yeniden açılabilir; kuruluysa T-Bridge açılır.
+Hakkında → Yasal, gömülü MIT lisansını, TR/EN/DE gizlilik metnini ve açık kaynak
+bildirimlerini ağ bağlantısı olmadan gösterir.
+
+`dotnet run --project tests/AmberTree.Checks -c Release`: kaynak anahtarları,
+biçim argümanları, üç dilde WPF görünüm oluşturma, İngilizce yedek dil,
+yasal belgeler ve zorunlu güncellemenin ertelenememesi. Pencere göstermez,
+tarama/silme/IPC başlatmaz ve kullanıcı ayarlarını değiştirmez.
 
 ## Derleme
 T-Suite SDK'ya (`TSuite.Link`, `TSuite.Update`, `TSuite.Updater`) **ProjectReference** ile bağımlıdır. Kardeş depo `C:\Users\hp\Projects\t-suite`
@@ -11,8 +24,8 @@ konumunda olmalıdır (csproj: `$(MSBuildProjectDirectory)\..\..\..\..\Projects\
 - Sürüm: `release.ps1 <sürüm> "notlar"` (`-Publish` verilmedikçe yayınlamaz; anahtar `C:\Users\hp\.t-suite\keys\t-desktree.pem`).
 - Güncelleme komutları: `app.update.check` / `app.update.install` (T-Bridge "Hepsini güncelle"); kapalıyken `T-DeskTree.exe --update` (arayüzsüz: kontrol, varsa indir + güncelleyici, çık).
 
-## Bilinen sorunlar
-- `T-DeskTree.exe --test` içinde TEST 4 başarısız ("No extensions recorded!"). Önceki sürümde de aynı; bu çalışmadan bağımsız, bilinçli olarak düzeltilmedi.
+`--test` tarama/istatistik denetimi kullanıcı belgeleri yerine geçici bir örnek
+klasör kullanır ve istatistikleri uygulamadaki `TreeMaintenance` yoluyla hesaplar.
 
 ## CI / Yayın
 - Kararlı sürüm için `git tag v1.2.0 && git push --tags` komutlarını kullanın.

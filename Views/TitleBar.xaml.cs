@@ -1,3 +1,4 @@
+using AmberTree.Localization;
 using System;
 using System.Windows;
 using System.Windows.Controls;
@@ -37,7 +38,7 @@ public partial class TitleBar : UserControl
     {
         bool max = Host?.WindowState == WindowState.Maximized;
         MaxButton.SetResourceReference(ContentControl.ContentProperty, max ? "Icon.Restore" : "Icon.Maximize");
-        MaxButton.ToolTip = max ? "Önceki boyut" : "Ekranı kapla";
+        MaxButton.ToolTip = max ? Strings.RestoreSize : Strings.MaximizeWindow;
         ThemeGlyph.SetResourceReference(TextBlock.TextProperty, ThemeService.Current.IsDark ? "Icon.Sun" : "Icon.Moon");
     }
 

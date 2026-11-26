@@ -17,6 +17,7 @@ public partial class App : Application
 
     protected override async void OnStartup(StartupEventArgs e)
     {
+        Localization.LanguagePreference.InitializeWpf();
         // CLI-only modlar tek-örnek kilidinden ÖNCE: çalışan örnekle yan yana çalışabilmeli.
         if (e.Args.Length > 0 && e.Args[0] == "--test")
         {
@@ -27,7 +28,9 @@ public partial class App : Application
         // T-Bridge "Hepsini güncelle": `--update` ile başlatılır -> kontrol, indirme, yardımcıyı başlat, çık (arayüz yok).
         if (TSuite.Update.UpdateCli.IsRequested(e.Args))
         {
-            int code = await TSuite.Update.UpdateCli.RunAsync(UpdateBannerViewModel.MakeOptions());
+            int code = 1;
+            try { code = await TSuite.Update.UpdateCli.RunAsync(UpdateBannerViewModel.MakeOptions()); }
+            catch (Exception ex) { Log.Error("UpdateCli failed", ex); }
             Shutdown(code);
             return;
         }
@@ -60,10 +63,17 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _exiting = true;
+        try { _activateEvent?.Set(); } catch { }
+        try { _activateEvent?.Dispose(); } catch { }
+        _activateEvent = null;
+        try { _singleInstanceMutex?.Dispose(); } catch { }
+        _singleInstanceMutex = null;
         _crashHook?.Dispose();
         base.OnExit(e);
     }
 
+    private volatile bool _exiting;
     private EventWaitHandle? _activateEvent;
 
     private void StartActivationListener()
@@ -72,7 +82,7 @@ public partial class App : Application
         var ev = _activateEvent;
         var t = new Thread(() =>
         {
-            while (ev.WaitOne())
+            try { while (!_exiting && ev.WaitOne())
             {
                 var d = Dispatcher;
                 if (d == null || d.HasShutdownStarted) break;
@@ -87,6 +97,7 @@ public partial class App : Application
                     w.Focus();
                 }));
             }
+            } catch (ObjectDisposedException) { }
         }) { IsBackground = true, Name = "ActivateListener" };
         t.Start();
     }
@@ -143,15 +154,19 @@ public partial class App : Application
             if (!DiskAlert.ShouldRaise(last, "D:\\", 5 * gb, 1000 * gb, t0)) throw new Exception("başka sürücü bağımsız olmalı");
             Console.WriteLine("PASSED");
 
-            // Test 4: Live Directory Scan with ScanEngine
-            string testDir = Directory.Exists(@"C:\Users\hp\Desktop\araçlar")
-                ? @"C:\Users\hp\Desktop\araçlar"
-                : AppDomain.CurrentDomain.BaseDirectory;
+            // Test 4 uses a controlled fixture, never the user's documents.
+            string testDir = Path.Combine(Path.GetTempPath(), "TDeskTreeScan_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(testDir);
+            File.WriteAllText(Path.Combine(testDir, "sample.txt"), "T-DeskTree diagnostic fixture");
 
             Console.Write($"[TEST 4] Testing ScanEngine on '{testDir}'... ");
             var engine = new ScanEngine();
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             var result = await engine.ScanAsync(testDir, cts.Token);
+            var stats = TreeMaintenance.ComputeStatistics(result.Root, DateTime.Now);
+            result.Extensions = stats.Extensions;
+            result.TopFiles = stats.TopFiles;
+            result.AgeDistribution = stats.AgeDistribution;
 
             if (result.Root == null) throw new Exception("Root item was null!");
             if (result.TotalFiles == 0) throw new Exception("No files scanned in test directory!");
@@ -178,7 +193,13 @@ public partial class App : Application
             if (!File.Exists(jsonPath) || new FileInfo(jsonPath).Length == 0) throw new Exception("JSON export empty!");
             if (!File.Exists(txtPath) || new FileInfo(txtPath).Length == 0) throw new Exception("TXT export empty!");
 
-            Directory.Delete(tempDir, true);
+            foreach (var fixture in new[] { testDir, tempDir })
+            {
+                var resolved = Path.GetFullPath(fixture);
+                var expectedParent = Path.GetFullPath(Path.GetTempPath()).TrimEnd(Path.DirectorySeparatorChar);
+                if (Path.GetDirectoryName(resolved) != expectedParent) throw new InvalidOperationException("Unexpected diagnostic fixture path");
+                Directory.Delete(resolved, true);
+            }
             Console.WriteLine("PASSED");
 
             Console.WriteLine("==================================================");

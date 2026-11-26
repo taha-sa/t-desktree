@@ -49,7 +49,11 @@ public partial class MainWindow : Window
     {
         try
         {
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true });
+            if (e.Uri is { IsAbsoluteUri: true } &&
+                (e.Uri.Scheme == System.Uri.UriSchemeHttps || e.Uri.Scheme == System.Uri.UriSchemeHttp))
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true })?.Dispose();
+            }
         }
         catch { }
         e.Handled = true;

@@ -1,0 +1,660 @@
+<?xml version='1.0' encoding='utf-8'?>
+<root>
+  <data name="Close" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="DismissError" xml:space="preserve">
+    <value>Dismiss error notification</value>
+  </data>
+  <data name="Tree" xml:space="preserve">
+    <value>Tree</value>
+  </data>
+  <data name="TreeShortcut" xml:space="preserve">
+    <value>Tree (Ctrl+1)</value>
+  </data>
+  <data name="Treemap" xml:space="preserve">
+    <value>Treemap</value>
+  </data>
+  <data name="TreemapShortcut" xml:space="preserve">
+    <value>Treemap (Ctrl+2)</value>
+  </data>
+  <data name="Top100" xml:space="preserve">
+    <value>Largest 100</value>
+  </data>
+  <data name="Top100Shortcut" xml:space="preserve">
+    <value>Largest 100 files (Ctrl+3)</value>
+  </data>
+  <data name="AboutHelp" xml:space="preserve">
+    <value>About and developer information</value>
+  </data>
+  <data name="About" xml:space="preserve">
+    <value>About</value>
+  </data>
+  <data name="DiskAnalysis" xml:space="preserve">
+    <value>Disk space analysis</value>
+  </data>
+  <data name="SuiteFamily" xml:space="preserve">
+    <value>Part of the T-Suite family</value>
+  </data>
+  <data name="Instagram" xml:space="preserve">
+    <value>Instagram: </value>
+  </data>
+  <data name="InstagramHelp" xml:space="preserve">
+    <value>Open Instagram profile: @tdesk.stuido</value>
+  </data>
+  <data name="Signature" xml:space="preserve">
+    <value>Signature: </value>
+  </data>
+  <data name="DeveloperName" xml:space="preserve">
+    <value>Taha Şaprak</value>
+  </data>
+  <data name="CheckUpdates" xml:space="preserve">
+    <value>Check for updates</value>
+  </data>
+  <data name="StartWindows" xml:space="preserve">
+    <value>Start with Windows</value>
+  </data>
+  <data name="PrepareReports" xml:space="preserve">
+    <value>Prepare error reports automatically</value>
+  </data>
+  <data name="SendReport" xml:space="preserve">
+    <value>Send error report</value>
+  </data>
+  <data name="PrivacySummary" xml:space="preserve">
+    <value>Disk analysis runs locally. Review error reports before submitting them yourself through GitHub.</value>
+  </data>
+  <data name="CopyDiagnostics" xml:space="preserve">
+    <value>Copy system diagnostics</value>
+  </data>
+  <data name="AgeDistribution" xml:space="preserve">
+    <value>File age distribution</value>
+  </data>
+  <data name="ModifiedRange" xml:space="preserve">
+    <value>Last modified range</value>
+  </data>
+  <data name="File" xml:space="preserve">
+    <value>File</value>
+  </data>
+  <data name="Size" xml:space="preserve">
+    <value>Size</value>
+  </data>
+  <data name="TotalShare" xml:space="preserve">
+    <value>Share of total</value>
+  </data>
+  <data name="SelectDrive" xml:space="preserve">
+    <value>Select drive</value>
+  </data>
+  <data name="ScanPathHelp" xml:space="preserve">
+    <value>Drive or folder path to scan</value>
+  </data>
+  <data name="ScanPath" xml:space="preserve">
+    <value>Path to scan</value>
+  </data>
+  <data name="SelectFolder" xml:space="preserve">
+    <value>Select folder</value>
+  </data>
+  <data name="Browse" xml:space="preserve">
+    <value>Browse</value>
+  </data>
+  <data name="StartScanShortcut" xml:space="preserve">
+    <value>Start scan (F5)</value>
+  </data>
+  <data name="StartScan" xml:space="preserve">
+    <value>Start scan</value>
+  </data>
+  <data name="Scan" xml:space="preserve">
+    <value>Scan</value>
+  </data>
+  <data name="StopScanShortcut" xml:space="preserve">
+    <value>Stop scan (Esc)</value>
+  </data>
+  <data name="StopScan" xml:space="preserve">
+    <value>Stop scan</value>
+  </data>
+  <data name="Stop" xml:space="preserve">
+    <value>Stop</value>
+  </data>
+  <data name="ExportResults" xml:space="preserve">
+    <value>Export results</value>
+  </data>
+  <data name="Export" xml:space="preserve">
+    <value>Export</value>
+  </data>
+  <data name="CsvTable" xml:space="preserve">
+    <value>CSV table (.csv)</value>
+  </data>
+  <data name="JsonDocument" xml:space="preserve">
+    <value>JSON document (.json)</value>
+  </data>
+  <data name="TextReport" xml:space="preserve">
+    <value>Text report (.txt)</value>
+  </data>
+  <data name="SearchShortcut" xml:space="preserve">
+    <value>Search (Ctrl+F)</value>
+  </data>
+  <data name="SearchFilesFolders" xml:space="preserve">
+    <value>Search files and folders</value>
+  </data>
+  <data name="ClearSearch" xml:space="preserve">
+    <value>Clear search</value>
+  </data>
+  <data name="Confirmation" xml:space="preserve">
+    <value>Confirmation</value>
+  </data>
+  <data name="ContinueQuestion" xml:space="preserve">
+    <value>Do you want to continue?</value>
+  </data>
+  <data name="Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Confirm" xml:space="preserve">
+    <value>Confirm</value>
+  </data>
+  <data name="ReportHelp" xml:space="preserve">
+    <value>Review the report before sending it. You submit it yourself on the GitHub page opened in your browser.</value>
+  </data>
+  <data name="Copy" xml:space="preserve">
+    <value>Copy</value>
+  </data>
+  <data name="SubmitReport" xml:space="preserve">
+    <value>Send report</value>
+  </data>
+  <data name="ReadyToAnalyze" xml:space="preserve">
+    <value>Ready to analyze your disk</value>
+  </data>
+  <data name="ChooseAndScan" xml:space="preserve">
+    <value>Select a drive or folder, then click Scan.</value>
+  </data>
+  <data name="ScanShortcut" xml:space="preserve">
+    <value>Shortcut: F5</value>
+  </data>
+  <data name="LastScan" xml:space="preserve">
+    <value>Last scanned</value>
+  </data>
+  <data name="ScanAgain" xml:space="preserve">
+    <value>Scan again</value>
+  </data>
+  <data name="ScanLastPath" xml:space="preserve">
+    <value>Scan the last path again</value>
+  </data>
+  <data name="ExtensionStatistics" xml:space="preserve">
+    <value>Extension statistics</value>
+  </data>
+  <data name="Extension" xml:space="preserve">
+    <value>Extension</value>
+  </data>
+  <data name="Description" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="OnDisk" xml:space="preserve">
+    <value>On disk</value>
+  </data>
+  <data name="Scanning" xml:space="preserve">
+    <value>Scanning…</value>
+  </data>
+  <data name="Folder" xml:space="preserve">
+    <value>Folder</value>
+  </data>
+  <data name="Speed" xml:space="preserve">
+    <value>Speed</value>
+  </data>
+  <data name="CurrentPath" xml:space="preserve">
+    <value>Currently scanning</value>
+  </data>
+  <data name="StopShortcut" xml:space="preserve">
+    <value>Stop (Esc)</value>
+  </data>
+  <data name="OpenExplorer" xml:space="preserve">
+    <value>Open in Explorer</value>
+  </data>
+  <data name="OpenTerminal" xml:space="preserve">
+    <value>Open in terminal</value>
+  </data>
+  <data name="CopyPath" xml:space="preserve">
+    <value>Copy path</value>
+  </data>
+  <data name="Rescan" xml:space="preserve">
+    <value>Rescan</value>
+  </data>
+  <data name="Recycle" xml:space="preserve">
+    <value>Move to Recycle Bin</value>
+  </data>
+  <data name="DeletePermanent" xml:space="preserve">
+    <value>Delete permanently</value>
+  </data>
+  <data name="TotalSize" xml:space="preserve">
+    <value>Total size</value>
+  </data>
+  <data name="Duration" xml:space="preserve">
+    <value>Duration</value>
+  </data>
+  <data name="DriveUsage" xml:space="preserve">
+    <value>Scanned drive usage</value>
+  </data>
+  <data name="DiskLabel" xml:space="preserve">
+    <value>Disk:</value>
+  </data>
+  <data name="Used" xml:space="preserve">
+    <value>used</value>
+  </data>
+  <data name="Free" xml:space="preserve">
+    <value>free</value>
+  </data>
+  <data name="Unit" xml:space="preserve">
+    <value>Unit</value>
+  </data>
+  <data name="Auto" xml:space="preserve">
+    <value>Auto</value>
+  </data>
+  <data name="Bytes" xml:space="preserve">
+    <value>Bytes</value>
+  </data>
+  <data name="RestartAdmin" xml:space="preserve">
+    <value>Restart as administrator</value>
+  </data>
+  <data name="ToggleTheme" xml:space="preserve">
+    <value>Toggle theme</value>
+  </data>
+  <data name="Minimize" xml:space="preserve">
+    <value>Minimize</value>
+  </data>
+  <data name="Maximize" xml:space="preserve">
+    <value>Maximize</value>
+  </data>
+  <data name="LargestFiles" xml:space="preserve">
+    <value>Largest files</value>
+  </data>
+  <data name="Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="Location" xml:space="preserve">
+    <value>Location</value>
+  </data>
+  <data name="LastModified" xml:space="preserve">
+    <value>Last modified</value>
+  </data>
+  <data name="Share" xml:space="preserve">
+    <value>Share</value>
+  </data>
+  <data name="AllocatedHelp" xml:space="preserve">
+    <value>Space used on disk, rounded to cluster size</value>
+  </data>
+  <data name="ParentPercent" xml:space="preserve">
+    <value>Parent %</value>
+  </data>
+  <data name="FolderDuplicate" xml:space="preserve">
+    <value>Folder</value>
+  </data>
+  <data name="Attributes" xml:space="preserve">
+    <value>Attributes</value>
+  </data>
+  <data name="QuoteStart" xml:space="preserve">
+    <value>“</value>
+  </data>
+  <data name="SearchNoResults" xml:space="preserve">
+    <value>” has no results</value>
+  </data>
+  <data name="SearchNoResultsHelp" xml:space="preserve">
+    <value>Try a different name or clear the search.</value>
+  </data>
+  <data name="ClearSearchDuplicate" xml:space="preserve">
+    <value>Clear search</value>
+  </data>
+  <data name="ParentShortcut" xml:space="preserve">
+    <value>Parent folder (Backspace)</value>
+  </data>
+  <data name="GoParent" xml:space="preserve">
+    <value>Go to parent folder</value>
+  </data>
+  <data name="Notes" xml:space="preserve">
+    <value>Notes</value>
+  </data>
+  <data name="ToggleNotes" xml:space="preserve">
+    <value>Show or hide release notes</value>
+  </data>
+  <data name="SkipVersion" xml:space="preserve">
+    <value>Skip this version</value>
+  </data>
+  <data name="Later" xml:space="preserve">
+    <value>Later</value>
+  </data>
+  <data name="RemindLater" xml:space="preserve">
+    <value>Remind me later</value>
+  </data>
+  <data name="Update" xml:space="preserve">
+    <value>Update</value>
+  </data>
+  <data name="InstallUpdate" xml:space="preserve">
+    <value>Download and install update</value>
+  </data>
+  <data name="DownloadingUpdate" xml:space="preserve">
+    <value>Downloading update</value>
+  </data>
+  <data name="CancelUpdate" xml:space="preserve">
+    <value>Cancel update download</value>
+  </data>
+  <data name="RestartingApp" xml:space="preserve">
+    <value>Restarting application</value>
+  </data>
+  <data name="Restarting" xml:space="preserve">
+    <value>Restarting…</value>
+  </data>
+  <data name="Installed" xml:space="preserve">
+    <value>Installed</value>
+  </data>
+  <data name="NotInstalled" xml:space="preserve">
+    <value>Not installed</value>
+  </data>
+  <data name="StartupSaveFailed" xml:space="preserve">
+    <value>Could not save the startup setting: {0}. Try again.</value>
+  </data>
+  <data name="CrashHeading" xml:space="preserve">
+    <value>The application closed unexpectedly</value>
+  </data>
+  <data name="ManualReport" xml:space="preserve">
+    <value>Created by the user</value>
+  </data>
+  <data name="ReportOpenFailed" xml:space="preserve">
+    <value>Could not open the report. Try again: </value>
+  </data>
+  <data name="ReportCopyFailed" xml:space="preserve">
+    <value>Could not copy the report. Try again: </value>
+  </data>
+  <data name="RestoreSize" xml:space="preserve">
+    <value>Restore size</value>
+  </data>
+  <data name="MaximizeWindow" xml:space="preserve">
+    <value>Maximize</value>
+  </data>
+  <data name="Ready" xml:space="preserve">
+    <value>Ready. Select a drive or folder and click Scan.</value>
+  </data>
+  <data name="IdleSpeed" xml:space="preserve">
+    <value>0 files/s</value>
+  </data>
+  <data name="PathCopied" xml:space="preserve">
+    <value>Path copied to clipboard.</value>
+  </data>
+  <data name="InvalidPath" xml:space="preserve">
+    <value>Select a valid folder or drive path.</value>
+  </data>
+  <data name="ScanningPath" xml:space="preserve">
+    <value>Scanning: {0}…</value>
+  </data>
+  <data name="ScanningMft" xml:space="preserve">
+    <value>Analyzing the MFT: {0}…</value>
+  </data>
+  <data name="NoScanResult" xml:space="preserve">
+    <value>The scan returned no results. Check the path and permissions, then try again.</value>
+  </data>
+  <data name="ScanCancelledSummary" xml:space="preserve">
+    <value>Scan cancelled: {0:F2} s ({1:N0} files, {2} scanned)</value>
+  </data>
+  <data name="MftTag" xml:space="preserve">
+    <value> (MFT)</value>
+  </data>
+  <data name="ScanComplete" xml:space="preserve">
+    <value>Scan completed{0}: {1:F2} s ({2:N0} files, {3:N0} folders, {4})</value>
+  </data>
+  <data name="ScanCancelled" xml:space="preserve">
+    <value>Scan cancelled by the user.</value>
+  </data>
+  <data name="ScanFailed" xml:space="preserve">
+    <value>Scan failed: {0}. Check the path and permissions and try again.</value>
+  </data>
+  <data name="ScanError" xml:space="preserve">
+    <value>Could not scan: {0}. Check the path and permissions and try again.</value>
+  </data>
+  <data name="StoppingScan" xml:space="preserve">
+    <value>Stopping scan…</value>
+  </data>
+  <data name="PermanentDeletion" xml:space="preserve">
+    <value>Permanent deletion</value>
+  </data>
+  <data name="RecycleTitle" xml:space="preserve">
+    <value>Move to Recycle Bin</value>
+  </data>
+  <data name="ConfirmDelete" xml:space="preserve">
+    <value>'{0}' will be permanently deleted.
+
+This cannot be undone. Continue?</value>
+  </data>
+  <data name="ConfirmRecycle" xml:space="preserve">
+    <value>Move '{0}' to the Recycle Bin?</value>
+  </data>
+  <data name="RecycleFailed" xml:space="preserve">
+    <value>Could not move the item to the Recycle Bin. Close applications using it and check permissions.</value>
+  </data>
+  <data name="Deleted" xml:space="preserve">
+    <value>'{0}' permanently deleted ({1} freed).</value>
+  </data>
+  <data name="Recycled" xml:space="preserve">
+    <value>'{0}' moved to the Recycle Bin ({1} freed).</value>
+  </data>
+  <data name="FolderMissing" xml:space="preserve">
+    <value>The folder no longer exists: {0}. Select another path.</value>
+  </data>
+  <data name="RescanningPath" xml:space="preserve">
+    <value>Rescanning folder: {0}…</value>
+  </data>
+  <data name="RescanCancelled" xml:space="preserve">
+    <value>Folder rescan cancelled; existing results were kept.</value>
+  </data>
+  <data name="FolderNotInTree" xml:space="preserve">
+    <value>The folder was not found in the tree. Run a new scan.</value>
+  </data>
+  <data name="RescanComplete" xml:space="preserve">
+    <value>Folder rescanned: {0} ({1:N0} files, {2}, {3:F2} s)</value>
+  </data>
+  <data name="RescanFailed" xml:space="preserve">
+    <value>Rescan failed: {0}. Check permissions and try again.</value>
+  </data>
+  <data name="RescanError" xml:space="preserve">
+    <value>Could not rescan the folder: {0}. Check permissions and try again.</value>
+  </data>
+  <data name="ActionFailed" xml:space="preserve">
+    <value>Could not complete the action. Check permissions and try again.</value>
+  </data>
+  <data name="CsvFilter" xml:space="preserve">
+    <value>CSV file (*.csv)|*.csv</value>
+  </data>
+  <data name="JsonFilter" xml:space="preserve">
+    <value>JSON file (*.json)|*.json</value>
+  </data>
+  <data name="TextFilter" xml:space="preserve">
+    <value>Text report (*.txt)|*.txt</value>
+  </data>
+  <data name="ExportComplete" xml:space="preserve">
+    <value>{0} report exported: {1}</value>
+  </data>
+  <data name="ExportFailed" xml:space="preserve">
+    <value>Could not export the report: {0}. Choose a writable location and try again.</value>
+  </data>
+  <data name="ChooseAnalysisPath" xml:space="preserve">
+    <value>Select a drive or folder to analyze</value>
+  </data>
+  <data name="PathMissing" xml:space="preserve">
+    <value>Path not found. Check its location: </value>
+  </data>
+  <data name="ExplorerFailed" xml:space="preserve">
+    <value>Could not open Explorer. Check the path and try again: </value>
+  </data>
+  <data name="TerminalFailed" xml:space="preserve">
+    <value>Could not open the command prompt. Try again: </value>
+  </data>
+  <data name="ClipboardFailed" xml:space="preserve">
+    <value>Could not copy to the clipboard. Try again: </value>
+  </data>
+  <data name="NewVersion" xml:space="preserve">
+    <value>New version {0} is ready</value>
+  </data>
+  <data name="NewVersionStatus" xml:space="preserve">
+    <value>New version {0} is ready.</value>
+  </data>
+  <data name="UpToDate" xml:space="preserve">
+    <value>You are up to date.</value>
+  </data>
+  <data name="UpdateDownloadFailed" xml:space="preserve">
+    <value>Could not download the update. Check your connection and try again.</value>
+  </data>
+  <data name="UpdateHashFailed" xml:space="preserve">
+    <value>File verification failed. Download the update again.</value>
+  </data>
+  <data name="UpdateSignatureFailed" xml:space="preserve">
+    <value>The update signature is invalid. Download a trusted release.</value>
+  </data>
+  <data name="UpdateAddressRejected" xml:space="preserve">
+    <value>An insecure download address was rejected. Use the official release page.</value>
+  </data>
+  <data name="UpdateCancelled" xml:space="preserve">
+    <value>Update cancelled.</value>
+  </data>
+  <data name="UpdateFailed" xml:space="preserve">
+    <value>Update failed. Try again: </value>
+  </data>
+  <data name="ArchiveCategory" xml:space="preserve">
+    <value>Archive</value>
+  </data>
+  <data name="ExecutableCategory" xml:space="preserve">
+    <value>Executable/System</value>
+  </data>
+  <data name="OtherCategory" xml:space="preserve">
+    <value>Other</value>
+  </data>
+  <data name="NoExtension" xml:space="preserve">
+    <value>[No extension]</value>
+  </data>
+  <data name="Age1to3" xml:space="preserve">
+    <value>1–3 months</value>
+  </data>
+  <data name="Age3to6" xml:space="preserve">
+    <value>3–6 months</value>
+  </data>
+  <data name="Age6to12" xml:space="preserve">
+    <value>6–12 months</value>
+  </data>
+  <data name="AgeOverYear" xml:space="preserve">
+    <value>Over one year</value>
+  </data>
+  <data name="CurrentApp" xml:space="preserve">
+    <value>This application</value>
+  </data>
+  <data name="Delete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="Yes" xml:space="preserve">
+    <value>Yes</value>
+  </data>
+  <data name="ReportTitle" xml:space="preserve">
+    <value>Error report</value>
+  </data>
+  <data name="SettingSaveFailed" xml:space="preserve">
+    <value>Could not save the setting. Try again: </value>
+  </data>
+  <data name="Checking" xml:space="preserve">
+    <value>Checking…</value>
+  </data>
+  <data name="CheckFailed" xml:space="preserve">
+    <value>Could not check. Check your connection and try again: </value>
+  </data>
+  <data name="ImageCategory" xml:space="preserve">
+    <value>Image</value>
+  </data>
+  <data name="AudioCategory" xml:space="preserve">
+    <value>Audio</value>
+  </data>
+  <data name="CodeCategory" xml:space="preserve">
+    <value>Code/Text</value>
+  </data>
+  <data name="DocumentCategory" xml:space="preserve">
+    <value>Document</value>
+  </data>
+  <data name="AgeUnderMonth" xml:space="preserve">
+    <value>Under one month</value>
+  </data>
+  <data name="TextLabel" xml:space="preserve">
+    <value>Text</value>
+  </data>
+  <data name="GetNamedApp" xml:space="preserve">
+    <value>Get {0}</value>
+  </data>
+  <data name="BridgeLine" xml:space="preserve">
+    <value>Receive disk alerts on your phone — with T-Bridge.</value>
+  </data>
+  <data name="BridgeTitle" xml:space="preserve">
+    <value>Your disk status on your phone</value>
+  </data>
+  <data name="GetBridge" xml:space="preserve">
+    <value>Get T-Bridge</value>
+  </data>
+  <data name="OpenBridge" xml:space="preserve">
+    <value>Open T-Bridge</value>
+  </data>
+  <data name="Language" xml:space="preserve">
+    <value>Language</value>
+  </data>
+  <data name="SystemLanguage" xml:space="preserve">
+    <value>System language</value>
+  </data>
+  <data name="RestartLanguage" xml:space="preserve">
+    <value>Language saved. Restart T-DeskTree to apply the new language.</value>
+  </data>
+  <data name="FilesPerSecond" xml:space="preserve">
+    <value>{0:N0} files/s</value>
+  </data>
+  <data name="Seconds" xml:space="preserve">
+    <value>{0:F1} s</value>
+  </data>
+  <data name="DeleteFailed" xml:space="preserve">
+    <value>Could not delete '{0}': {1}. Check permissions and try again.</value>
+  </data>
+  <data name="SourceLicense" xml:space="preserve">
+    <value>Source and license information</value>
+  </data>
+  <data name="TreemapHelp" xml:space="preserve">
+    <value>Click a tile; double-click to enter a folder.</value>
+  </data>
+  <data name="TreemapTooltip" xml:space="preserve">
+    <value>{0}
+Size: {1}
+On disk: {2}
+Files: {3:N0}   Folders: {4:N0}
+{5}</value>
+  </data>
+  <data name="DeleteError" xml:space="preserve">
+    <value>Could not delete. Check permissions and try again: </value>
+  </data>
+  <data name="Legal" xml:space="preserve">
+    <value>Legal</value>
+  </data>
+  <data name="Privacy" xml:space="preserve">
+    <value>Privacy policy</value>
+  </data>
+  <data name="License" xml:space="preserve">
+    <value>License</value>
+  </data>
+  <data name="Notices" xml:space="preserve">
+    <value>Open-source notices</value>
+  </data>
+  <data name="ReportSource" xml:space="preserve">
+    <value>Source information</value>
+  </data>
+  <data name="DateFormat" xml:space="preserve">
+    <value>{0:yyyy-MM-dd HH:mm}</value>
+  </data>
+  <data name="ScanReport" xml:space="preserve">
+    <value>T-DeskTree scan report — {0:yyyy-MM-dd HH:mm:ss}</value>
+  </data>
+  <data name="ReportRoot" xml:space="preserve">
+    <value>Root: {0}</value>
+  </data>
+  <data name="ReportSize" xml:space="preserve">
+    <value>Total size: {0} ({1:N0} bytes)</value>
+  </data>
+  <data name="ReportAllocated" xml:space="preserve">
+    <value>Allocated: {0} ({1:N0} bytes)</value>
+  </data>
+  <data name="ReportCounts" xml:space="preserve">
+    <value>Files: {0:N0} | Folders: {1:N0}</value>
+  </data>
+</root>

@@ -1,3 +1,4 @@
+using AmberTree.Localization;
 using System;
 using System.Collections.Generic;
 
@@ -57,12 +58,12 @@ public static class FileCategoryMap
     public static string DisplayName(FileCategory c) => c switch
     {
         FileCategory.Video => "Video",
-        FileCategory.Image => "Resim",
-        FileCategory.Audio => "Ses",
-        FileCategory.Archive => "Arşiv",
-        FileCategory.Code => "Kod/Metin",
-        FileCategory.Executable => "Çalıştırılabilir/Sistem",
-        FileCategory.Document => "Belge",
-        _ => "Diğer"
+        FileCategory.Image => Strings.ImageCategory,
+        FileCategory.Audio => Strings.AudioCategory,
+        FileCategory.Archive => Strings.ArchiveCategory,
+        FileCategory.Code => Strings.CodeCategory,
+        FileCategory.Executable => Strings.ExecutableCategory,
+        FileCategory.Document => Strings.DocumentCategory,
+        _ => Strings.OtherCategory
     };
 }

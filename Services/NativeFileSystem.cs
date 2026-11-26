@@ -63,6 +63,7 @@ public static class NativeFileSystem
     private const ushort FOF_ALLOWUNDO = 0x0040;
     private const ushort FOF_NOCONFIRMATION = 0x0010;
     private const ushort FOF_SILENT = 0x0004;
+    private const ushort FOF_NOERRORUI = 0x0400;
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct SHFILEOPSTRUCT
@@ -86,15 +87,16 @@ public static class NativeFileSystem
 
     public static bool MoveToRecycleBin(string path)
     {
+        if (string.IsNullOrWhiteSpace(path) || path.IndexOf('\0') >= 0) return false;
         try
         {
             var shf = new SHFILEOPSTRUCT
             {
                 wFunc = FO_DELETE,
                 pFrom = path + '\0' + '\0',
-                fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT
+                fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT | FOF_NOERRORUI
             };
-            return SHFileOperation(ref shf) == 0;
+            return SHFileOperation(ref shf) == 0 && !shf.fAnyOperationsAborted;
         }
         catch
         {

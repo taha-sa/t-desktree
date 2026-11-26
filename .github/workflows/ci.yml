@@ -8,6 +8,23 @@ permissions:
   contents: read
 
 jobs:
+  localized-ui:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: app
+      - uses: actions/checkout@v4
+        with:
+          repository: taha-sa/t-suite
+          token: ${{ secrets.TSUITE_READ_TOKEN }}
+          path: t-suite-sdk
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Check resources, WPF views and required updates
+        shell: pwsh
+        run: dotnet run --project app/tests/AmberTree.Checks -c Release -p:TSuiteRoot="$pwd/t-suite-sdk"
   ci:
     uses: taha-sa/t-suite/.github/workflows/app-ci.yml@main
     with:

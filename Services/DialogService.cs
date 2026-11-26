@@ -1,3 +1,4 @@
+using AmberTree.Localization;
 using System;
 using System.IO;
 using System.Windows;
@@ -45,7 +46,7 @@ public class DialogService : IDialogService
     {
         var dlg = new OpenFolderDialog
         {
-            Title = "Analiz edilecek sürücüyü ya da klasörü seçin",
+            Title = Strings.ChooseAnalysisPath,
             InitialDirectory = !string.IsNullOrEmpty(initialDirectory) && Directory.Exists(initialDirectory)
                 ? initialDirectory
                 : "C:\\"

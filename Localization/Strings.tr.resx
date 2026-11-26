@@ -1,0 +1,660 @@
+<?xml version='1.0' encoding='utf-8'?>
+<root>
+  <data name="Close" xml:space="preserve">
+    <value>Kapat</value>
+  </data>
+  <data name="DismissError" xml:space="preserve">
+    <value>Hata bildirimini kapat</value>
+  </data>
+  <data name="Tree" xml:space="preserve">
+    <value>Ağaç</value>
+  </data>
+  <data name="TreeShortcut" xml:space="preserve">
+    <value>Ağaç (Ctrl+1)</value>
+  </data>
+  <data name="Treemap" xml:space="preserve">
+    <value>Harita</value>
+  </data>
+  <data name="TreemapShortcut" xml:space="preserve">
+    <value>Harita (Ctrl+2)</value>
+  </data>
+  <data name="Top100" xml:space="preserve">
+    <value>En büyük 100</value>
+  </data>
+  <data name="Top100Shortcut" xml:space="preserve">
+    <value>En büyük 100 dosya (Ctrl+3)</value>
+  </data>
+  <data name="AboutHelp" xml:space="preserve">
+    <value>Hakkında ve geliştirici bilgileri</value>
+  </data>
+  <data name="About" xml:space="preserve">
+    <value>Hakkında</value>
+  </data>
+  <data name="DiskAnalysis" xml:space="preserve">
+    <value>Disk alanı analizi</value>
+  </data>
+  <data name="SuiteFamily" xml:space="preserve">
+    <value>T-Suite ailesinin parçası</value>
+  </data>
+  <data name="Instagram" xml:space="preserve">
+    <value>İnstagram: </value>
+  </data>
+  <data name="InstagramHelp" xml:space="preserve">
+    <value>Instagram profilini aç: @tdesk.stuido</value>
+  </data>
+  <data name="Signature" xml:space="preserve">
+    <value>Signature: </value>
+  </data>
+  <data name="DeveloperName" xml:space="preserve">
+    <value>Taha Şaprak</value>
+  </data>
+  <data name="CheckUpdates" xml:space="preserve">
+    <value>Güncellemeleri denetle</value>
+  </data>
+  <data name="StartWindows" xml:space="preserve">
+    <value>Windows ile başlat</value>
+  </data>
+  <data name="PrepareReports" xml:space="preserve">
+    <value>Hata raporlarını otomatik hazırla</value>
+  </data>
+  <data name="SendReport" xml:space="preserve">
+    <value>Hata raporu gönder</value>
+  </data>
+  <data name="PrivacySummary" xml:space="preserve">
+    <value>Disk analizi yerel olarak yapılır. Hata raporunu göndermeden önce inceleyebilirsiniz; gönderim GitHub üzerinden sizin onayınızla yapılır.</value>
+  </data>
+  <data name="CopyDiagnostics" xml:space="preserve">
+    <value>Sistem tanılamasını kopyala</value>
+  </data>
+  <data name="AgeDistribution" xml:space="preserve">
+    <value>Yaş dağılımı</value>
+  </data>
+  <data name="ModifiedRange" xml:space="preserve">
+    <value>Son değişiklik aralığı</value>
+  </data>
+  <data name="File" xml:space="preserve">
+    <value>Dosya</value>
+  </data>
+  <data name="Size" xml:space="preserve">
+    <value>Boyut</value>
+  </data>
+  <data name="TotalShare" xml:space="preserve">
+    <value>Toplam içindeki pay</value>
+  </data>
+  <data name="SelectDrive" xml:space="preserve">
+    <value>Sürücü seç</value>
+  </data>
+  <data name="ScanPathHelp" xml:space="preserve">
+    <value>Taranacak sürücü ya da klasör yolu</value>
+  </data>
+  <data name="ScanPath" xml:space="preserve">
+    <value>Taranacak yol</value>
+  </data>
+  <data name="SelectFolder" xml:space="preserve">
+    <value>Klasör seç</value>
+  </data>
+  <data name="Browse" xml:space="preserve">
+    <value>Gözat</value>
+  </data>
+  <data name="StartScanShortcut" xml:space="preserve">
+    <value>Taramayı başlat (F5)</value>
+  </data>
+  <data name="StartScan" xml:space="preserve">
+    <value>Taramayı başlat</value>
+  </data>
+  <data name="Scan" xml:space="preserve">
+    <value>Tara</value>
+  </data>
+  <data name="StopScanShortcut" xml:space="preserve">
+    <value>Taramayı durdur (Esc)</value>
+  </data>
+  <data name="StopScan" xml:space="preserve">
+    <value>Taramayı durdur</value>
+  </data>
+  <data name="Stop" xml:space="preserve">
+    <value>Durdur</value>
+  </data>
+  <data name="ExportResults" xml:space="preserve">
+    <value>Sonuçları dışa aktar</value>
+  </data>
+  <data name="Export" xml:space="preserve">
+    <value>Dışa aktar</value>
+  </data>
+  <data name="CsvTable" xml:space="preserve">
+    <value>CSV tablosu (.csv)</value>
+  </data>
+  <data name="JsonDocument" xml:space="preserve">
+    <value>JSON belgesi (.json)</value>
+  </data>
+  <data name="TextReport" xml:space="preserve">
+    <value>Metin raporu (.txt)</value>
+  </data>
+  <data name="SearchShortcut" xml:space="preserve">
+    <value>Ara (Ctrl+F)</value>
+  </data>
+  <data name="SearchFilesFolders" xml:space="preserve">
+    <value>Dosya ve klasör ara</value>
+  </data>
+  <data name="ClearSearch" xml:space="preserve">
+    <value>Aramayı temizle</value>
+  </data>
+  <data name="Confirmation" xml:space="preserve">
+    <value>Onay</value>
+  </data>
+  <data name="ContinueQuestion" xml:space="preserve">
+    <value>Devam etmek istiyor musunuz?</value>
+  </data>
+  <data name="Cancel" xml:space="preserve">
+    <value>İptal</value>
+  </data>
+  <data name="Confirm" xml:space="preserve">
+    <value>Onayla</value>
+  </data>
+  <data name="ReportHelp" xml:space="preserve">
+    <value>Göndermeden önce raporu inceleyin. Tarayıcıda açılan GitHub sayfasında raporu siz göndereceksiniz.</value>
+  </data>
+  <data name="Copy" xml:space="preserve">
+    <value>Kopyala</value>
+  </data>
+  <data name="SubmitReport" xml:space="preserve">
+    <value>Raporu gönder</value>
+  </data>
+  <data name="ReadyToAnalyze" xml:space="preserve">
+    <value>Diski analiz etmeye hazır</value>
+  </data>
+  <data name="ChooseAndScan" xml:space="preserve">
+    <value>Bir sürücü ya da klasör seçip Tara'ya basın.</value>
+  </data>
+  <data name="ScanShortcut" xml:space="preserve">
+    <value>Kısayol: F5</value>
+  </data>
+  <data name="LastScan" xml:space="preserve">
+    <value>Son taranan</value>
+  </data>
+  <data name="ScanAgain" xml:space="preserve">
+    <value>Tekrar tara</value>
+  </data>
+  <data name="ScanLastPath" xml:space="preserve">
+    <value>Son taranan yolu tekrar tara</value>
+  </data>
+  <data name="ExtensionStatistics" xml:space="preserve">
+    <value>Uzantı istatistikleri</value>
+  </data>
+  <data name="Extension" xml:space="preserve">
+    <value>Uzantı</value>
+  </data>
+  <data name="Description" xml:space="preserve">
+    <value>Açıklama</value>
+  </data>
+  <data name="OnDisk" xml:space="preserve">
+    <value>Diskte</value>
+  </data>
+  <data name="Scanning" xml:space="preserve">
+    <value>Taranıyor…</value>
+  </data>
+  <data name="Folder" xml:space="preserve">
+    <value>Klasör</value>
+  </data>
+  <data name="Speed" xml:space="preserve">
+    <value>Hız</value>
+  </data>
+  <data name="CurrentPath" xml:space="preserve">
+    <value>Şu an taranan</value>
+  </data>
+  <data name="StopShortcut" xml:space="preserve">
+    <value>Durdur (Esc)</value>
+  </data>
+  <data name="OpenExplorer" xml:space="preserve">
+    <value>Explorer'da aç</value>
+  </data>
+  <data name="OpenTerminal" xml:space="preserve">
+    <value>Terminalde aç</value>
+  </data>
+  <data name="CopyPath" xml:space="preserve">
+    <value>Yolu kopyala</value>
+  </data>
+  <data name="Rescan" xml:space="preserve">
+    <value>Yeniden tara</value>
+  </data>
+  <data name="Recycle" xml:space="preserve">
+    <value>Geri dönüşüm kutusuna taşı</value>
+  </data>
+  <data name="DeletePermanent" xml:space="preserve">
+    <value>Kalıcı sil</value>
+  </data>
+  <data name="TotalSize" xml:space="preserve">
+    <value>Toplam boyut</value>
+  </data>
+  <data name="Duration" xml:space="preserve">
+    <value>Süre</value>
+  </data>
+  <data name="DriveUsage" xml:space="preserve">
+    <value>Taranan sürücünün doluluk durumu</value>
+  </data>
+  <data name="DiskLabel" xml:space="preserve">
+    <value>Disk:</value>
+  </data>
+  <data name="Used" xml:space="preserve">
+    <value>dolu</value>
+  </data>
+  <data name="Free" xml:space="preserve">
+    <value>boş</value>
+  </data>
+  <data name="Unit" xml:space="preserve">
+    <value>Birim</value>
+  </data>
+  <data name="Auto" xml:space="preserve">
+    <value>Oto</value>
+  </data>
+  <data name="Bytes" xml:space="preserve">
+    <value>Bayt</value>
+  </data>
+  <data name="RestartAdmin" xml:space="preserve">
+    <value>Yönetici olarak yeniden başlat</value>
+  </data>
+  <data name="ToggleTheme" xml:space="preserve">
+    <value>Temayı değiştir</value>
+  </data>
+  <data name="Minimize" xml:space="preserve">
+    <value>Simge durumuna küçült</value>
+  </data>
+  <data name="Maximize" xml:space="preserve">
+    <value>Ekranı kapla</value>
+  </data>
+  <data name="LargestFiles" xml:space="preserve">
+    <value>En büyük dosyalar</value>
+  </data>
+  <data name="Name" xml:space="preserve">
+    <value>Ad</value>
+  </data>
+  <data name="Location" xml:space="preserve">
+    <value>Konum</value>
+  </data>
+  <data name="LastModified" xml:space="preserve">
+    <value>Son değişiklik</value>
+  </data>
+  <data name="Share" xml:space="preserve">
+    <value>Pay</value>
+  </data>
+  <data name="AllocatedHelp" xml:space="preserve">
+    <value>Kümeye yuvarlanmış, diskte kapladığı alan</value>
+  </data>
+  <data name="ParentPercent" xml:space="preserve">
+    <value>Üst %'si</value>
+  </data>
+  <data name="FolderDuplicate" xml:space="preserve">
+    <value>Klasör</value>
+  </data>
+  <data name="Attributes" xml:space="preserve">
+    <value>Öznitelik</value>
+  </data>
+  <data name="QuoteStart" xml:space="preserve">
+    <value>“</value>
+  </data>
+  <data name="SearchNoResults" xml:space="preserve">
+    <value>” için sonuç yok</value>
+  </data>
+  <data name="SearchNoResultsHelp" xml:space="preserve">
+    <value>Farklı bir ad deneyin ya da aramayı temizleyin.</value>
+  </data>
+  <data name="ClearSearchDuplicate" xml:space="preserve">
+    <value>Aramayı temizle</value>
+  </data>
+  <data name="ParentShortcut" xml:space="preserve">
+    <value>Üst klasör (Backspace)</value>
+  </data>
+  <data name="GoParent" xml:space="preserve">
+    <value>Üst klasöre çık</value>
+  </data>
+  <data name="Notes" xml:space="preserve">
+    <value>Notlar</value>
+  </data>
+  <data name="ToggleNotes" xml:space="preserve">
+    <value>Sürüm notlarını göster veya gizle</value>
+  </data>
+  <data name="SkipVersion" xml:space="preserve">
+    <value>Bu sürümü atla</value>
+  </data>
+  <data name="Later" xml:space="preserve">
+    <value>Sonra</value>
+  </data>
+  <data name="RemindLater" xml:space="preserve">
+    <value>Güncellemeyi sonra hatırlat</value>
+  </data>
+  <data name="Update" xml:space="preserve">
+    <value>Güncelle</value>
+  </data>
+  <data name="InstallUpdate" xml:space="preserve">
+    <value>Güncellemeyi indir ve kur</value>
+  </data>
+  <data name="DownloadingUpdate" xml:space="preserve">
+    <value>Güncelleme indiriliyor</value>
+  </data>
+  <data name="CancelUpdate" xml:space="preserve">
+    <value>Güncelleme indirmesini iptal et</value>
+  </data>
+  <data name="RestartingApp" xml:space="preserve">
+    <value>Uygulama yeniden başlatılıyor</value>
+  </data>
+  <data name="Restarting" xml:space="preserve">
+    <value>Yeniden başlatılıyor…</value>
+  </data>
+  <data name="Installed" xml:space="preserve">
+    <value>Yüklü</value>
+  </data>
+  <data name="NotInstalled" xml:space="preserve">
+    <value>Yüklü değil</value>
+  </data>
+  <data name="StartupSaveFailed" xml:space="preserve">
+    <value>Başlangıç ayarı kaydedilemedi: {0}. Tekrar deneyin.</value>
+  </data>
+  <data name="CrashHeading" xml:space="preserve">
+    <value>Uygulama beklenmedik şekilde kapandı</value>
+  </data>
+  <data name="ManualReport" xml:space="preserve">
+    <value>Kullanıcı tarafından oluşturuldu</value>
+  </data>
+  <data name="ReportOpenFailed" xml:space="preserve">
+    <value>Rapor açılamadı: </value>
+  </data>
+  <data name="ReportCopyFailed" xml:space="preserve">
+    <value>Rapor kopyalanamadı: </value>
+  </data>
+  <data name="RestoreSize" xml:space="preserve">
+    <value>Önceki boyut</value>
+  </data>
+  <data name="MaximizeWindow" xml:space="preserve">
+    <value>Ekranı kapla</value>
+  </data>
+  <data name="Ready" xml:space="preserve">
+    <value>Hazır. Bir sürücü ya da klasör seçip Tara'ya basın.</value>
+  </data>
+  <data name="IdleSpeed" xml:space="preserve">
+    <value>0 dosya/sn</value>
+  </data>
+  <data name="PathCopied" xml:space="preserve">
+    <value>Yol panoya kopyalandı.</value>
+  </data>
+  <data name="InvalidPath" xml:space="preserve">
+    <value>Geçerli bir klasör ya da sürücü yolu seçin.</value>
+  </data>
+  <data name="ScanningPath" xml:space="preserve">
+    <value>Taranıyor: {0}...</value>
+  </data>
+  <data name="ScanningMft" xml:space="preserve">
+    <value>MFT analizi yapılıyor (Ultra Hızlı): {0}...</value>
+  </data>
+  <data name="NoScanResult" xml:space="preserve">
+    <value>Tarama sonuç üretmedi.</value>
+  </data>
+  <data name="ScanCancelledSummary" xml:space="preserve">
+    <value>Tarama iptal edildi: {0:F2} sn ({1:N0} dosya, {2} tarandı)</value>
+  </data>
+  <data name="MftTag" xml:space="preserve">
+    <value> (MFT Ultra Hızlı)</value>
+  </data>
+  <data name="ScanComplete" xml:space="preserve">
+    <value>Tarama tamamlandı{0}: {1:F2} sn ({2:N0} dosya, {3:N0} klasör, {4})</value>
+  </data>
+  <data name="ScanCancelled" xml:space="preserve">
+    <value>Tarama kullanıcı tarafından iptal edildi.</value>
+  </data>
+  <data name="ScanFailed" xml:space="preserve">
+    <value>Tarama başarısız: {0}</value>
+  </data>
+  <data name="ScanError" xml:space="preserve">
+    <value>Tarama sırasında hata oluştu: {0}</value>
+  </data>
+  <data name="StoppingScan" xml:space="preserve">
+    <value>Tarama durduruluyor...</value>
+  </data>
+  <data name="PermanentDeletion" xml:space="preserve">
+    <value>Kalıcı silme</value>
+  </data>
+  <data name="RecycleTitle" xml:space="preserve">
+    <value>Geri dönüşüm kutusuna taşı</value>
+  </data>
+  <data name="ConfirmDelete" xml:space="preserve">
+    <value>'{0}' kalıcı olarak silinecek.
+
+Bu işlem geri alınamaz. Devam edilsin mi?</value>
+  </data>
+  <data name="ConfirmRecycle" xml:space="preserve">
+    <value>'{0}' geri dönüşüm kutusuna taşınsın mı?</value>
+  </data>
+  <data name="RecycleFailed" xml:space="preserve">
+    <value>Geri dönüşüm kutusuna taşınamadı (dosya kullanımda ya da izin yok olabilir).</value>
+  </data>
+  <data name="Deleted" xml:space="preserve">
+    <value>'{0}' kalıcı olarak silindi ({1} boşaldı).</value>
+  </data>
+  <data name="Recycled" xml:space="preserve">
+    <value>'{0}' geri dönüşüm kutusuna taşındı ({1} boşaldı).</value>
+  </data>
+  <data name="FolderMissing" xml:space="preserve">
+    <value>Klasör artık yok: {0}</value>
+  </data>
+  <data name="RescanningPath" xml:space="preserve">
+    <value>Klasör yeniden taranıyor: {0}...</value>
+  </data>
+  <data name="RescanCancelled" xml:space="preserve">
+    <value>Klasör yeniden tarama iptal edildi; mevcut sonuçlar korundu.</value>
+  </data>
+  <data name="FolderNotInTree" xml:space="preserve">
+    <value>Klasör ağaçta bulunamadı; yeniden tarama uygulanmadı.</value>
+  </data>
+  <data name="RescanComplete" xml:space="preserve">
+    <value>Klasör yeniden tarandı: {0} ({1:N0} dosya, {2}, {3:F2} sn)</value>
+  </data>
+  <data name="RescanFailed" xml:space="preserve">
+    <value>Yeniden tarama başarısız: {0}</value>
+  </data>
+  <data name="RescanError" xml:space="preserve">
+    <value>Klasör yeniden taranırken hata oluştu: {0}</value>
+  </data>
+  <data name="ActionFailed" xml:space="preserve">
+    <value>İşlem gerçekleştirilemedi.</value>
+  </data>
+  <data name="CsvFilter" xml:space="preserve">
+    <value>CSV dosyası (*.csv)|*.csv</value>
+  </data>
+  <data name="JsonFilter" xml:space="preserve">
+    <value>JSON dosyası (*.json)|*.json</value>
+  </data>
+  <data name="TextFilter" xml:space="preserve">
+    <value>Metin raporu (*.txt)|*.txt</value>
+  </data>
+  <data name="ExportComplete" xml:space="preserve">
+    <value>{0} raporu dışa aktarıldı: {1}</value>
+  </data>
+  <data name="ExportFailed" xml:space="preserve">
+    <value>Rapor dışa aktarılamadı: {0}</value>
+  </data>
+  <data name="ChooseAnalysisPath" xml:space="preserve">
+    <value>Analiz edilecek sürücüyü ya da klasörü seçin</value>
+  </data>
+  <data name="PathMissing" xml:space="preserve">
+    <value>Yol bulunamadı: </value>
+  </data>
+  <data name="ExplorerFailed" xml:space="preserve">
+    <value>Gezginde açılamadı: </value>
+  </data>
+  <data name="TerminalFailed" xml:space="preserve">
+    <value>Komut istemi açılamadı: </value>
+  </data>
+  <data name="ClipboardFailed" xml:space="preserve">
+    <value>Panoya kopyalanamadı: </value>
+  </data>
+  <data name="NewVersion" xml:space="preserve">
+    <value>Yeni sürüm {0} hazır</value>
+  </data>
+  <data name="NewVersionStatus" xml:space="preserve">
+    <value>Yeni sürüm {0} hazır.</value>
+  </data>
+  <data name="UpToDate" xml:space="preserve">
+    <value>Güncelsiniz.</value>
+  </data>
+  <data name="UpdateDownloadFailed" xml:space="preserve">
+    <value>Güncelleme indirilemedi</value>
+  </data>
+  <data name="UpdateHashFailed" xml:space="preserve">
+    <value>Dosya doğrulaması başarısız (bozuk indirme).</value>
+  </data>
+  <data name="UpdateSignatureFailed" xml:space="preserve">
+    <value>Güncelleme imzası geçersiz.</value>
+  </data>
+  <data name="UpdateAddressRejected" xml:space="preserve">
+    <value>Güvenli olmayan indirme adresi reddedildi.</value>
+  </data>
+  <data name="UpdateCancelled" xml:space="preserve">
+    <value>Güncelleme iptal edildi.</value>
+  </data>
+  <data name="UpdateFailed" xml:space="preserve">
+    <value>Güncelleme başarısız: </value>
+  </data>
+  <data name="ArchiveCategory" xml:space="preserve">
+    <value>Arşiv</value>
+  </data>
+  <data name="ExecutableCategory" xml:space="preserve">
+    <value>Çalıştırılabilir/Sistem</value>
+  </data>
+  <data name="OtherCategory" xml:space="preserve">
+    <value>Diğer</value>
+  </data>
+  <data name="NoExtension" xml:space="preserve">
+    <value>[Uzantısız]</value>
+  </data>
+  <data name="Age1to3" xml:space="preserve">
+    <value>1 - 3 ay</value>
+  </data>
+  <data name="Age3to6" xml:space="preserve">
+    <value>3 - 6 ay</value>
+  </data>
+  <data name="Age6to12" xml:space="preserve">
+    <value>6 - 12 ay</value>
+  </data>
+  <data name="AgeOverYear" xml:space="preserve">
+    <value>1 yıldan eski</value>
+  </data>
+  <data name="CurrentApp" xml:space="preserve">
+    <value>Bu uygulama</value>
+  </data>
+  <data name="Delete" xml:space="preserve">
+    <value>Sil</value>
+  </data>
+  <data name="Yes" xml:space="preserve">
+    <value>Evet</value>
+  </data>
+  <data name="ReportTitle" xml:space="preserve">
+    <value>Hata raporu</value>
+  </data>
+  <data name="SettingSaveFailed" xml:space="preserve">
+    <value>Ayar kaydedilemedi. Tekrar deneyin: </value>
+  </data>
+  <data name="Checking" xml:space="preserve">
+    <value>Denetleniyor…</value>
+  </data>
+  <data name="CheckFailed" xml:space="preserve">
+    <value>Denetlenemedi. Bağlantınızı kontrol edip tekrar deneyin: </value>
+  </data>
+  <data name="ImageCategory" xml:space="preserve">
+    <value>Resim</value>
+  </data>
+  <data name="AudioCategory" xml:space="preserve">
+    <value>Ses</value>
+  </data>
+  <data name="CodeCategory" xml:space="preserve">
+    <value>Kod/Metin</value>
+  </data>
+  <data name="DocumentCategory" xml:space="preserve">
+    <value>Belge</value>
+  </data>
+  <data name="AgeUnderMonth" xml:space="preserve">
+    <value>1 aydan yeni</value>
+  </data>
+  <data name="TextLabel" xml:space="preserve">
+    <value>Metin</value>
+  </data>
+  <data name="GetNamedApp" xml:space="preserve">
+    <value>{0} uygulamasını edinin</value>
+  </data>
+  <data name="BridgeLine" xml:space="preserve">
+    <value>Disk uyarılarını telefonunuzda alın — T-Bridge ile.</value>
+  </data>
+  <data name="BridgeTitle" xml:space="preserve">
+    <value>Disk durumunuz telefonunuzda</value>
+  </data>
+  <data name="GetBridge" xml:space="preserve">
+    <value>T-Bridge’i edinin</value>
+  </data>
+  <data name="OpenBridge" xml:space="preserve">
+    <value>T-Bridge’i açın</value>
+  </data>
+  <data name="Language" xml:space="preserve">
+    <value>Dil</value>
+  </data>
+  <data name="SystemLanguage" xml:space="preserve">
+    <value>Sistem dili</value>
+  </data>
+  <data name="RestartLanguage" xml:space="preserve">
+    <value>Dil tercihiniz kaydedildi. Yeni dili uygulamak için T-DeskTree uygulamasını yeniden başlatın.</value>
+  </data>
+  <data name="FilesPerSecond" xml:space="preserve">
+    <value>{0:N0} dosya/sn</value>
+  </data>
+  <data name="Seconds" xml:space="preserve">
+    <value>{0:F1} sn</value>
+  </data>
+  <data name="DeleteFailed" xml:space="preserve">
+    <value>'{0}' silinemedi: {1}. İzinleri kontrol edip tekrar deneyin.</value>
+  </data>
+  <data name="SourceLicense" xml:space="preserve">
+    <value>Kaynak ve lisans bilgileri</value>
+  </data>
+  <data name="TreemapHelp" xml:space="preserve">
+    <value>Bir kareye tıklayın; çift tıklama klasöre girer.</value>
+  </data>
+  <data name="TreemapTooltip" xml:space="preserve">
+    <value>{0}
+Boyut: {1}
+Diskte: {2}
+Dosya: {3:N0}   Klasör: {4:N0}
+{5}</value>
+  </data>
+  <data name="DeleteError" xml:space="preserve">
+    <value>Silinemedi. İzinleri kontrol edip tekrar deneyin: </value>
+  </data>
+  <data name="Legal" xml:space="preserve">
+    <value>Yasal</value>
+  </data>
+  <data name="Privacy" xml:space="preserve">
+    <value>Gizlilik politikası</value>
+  </data>
+  <data name="License" xml:space="preserve">
+    <value>Lisans</value>
+  </data>
+  <data name="Notices" xml:space="preserve">
+    <value>Açık kaynak bildirimleri</value>
+  </data>
+  <data name="ReportSource" xml:space="preserve">
+    <value>Kaynak bilgileri</value>
+  </data>
+  <data name="DateFormat" xml:space="preserve">
+    <value>{0:dd.MM.yyyy HH:mm}</value>
+  </data>
+  <data name="ScanReport" xml:space="preserve">
+    <value>T-DeskTree tarama raporu — {0:dd.MM.yyyy HH:mm:ss}</value>
+  </data>
+  <data name="ReportRoot" xml:space="preserve">
+    <value>Kök: {0}</value>
+  </data>
+  <data name="ReportSize" xml:space="preserve">
+    <value>Toplam boyut: {0} ({1:N0} bayt)</value>
+  </data>
+  <data name="ReportAllocated" xml:space="preserve">
+    <value>Diskte: {0} ({1:N0} bayt)</value>
+  </data>
+  <data name="ReportCounts" xml:space="preserve">
+    <value>Dosya: {0:N0} | Klasör: {1:N0}</value>
+  </data>
+</root>

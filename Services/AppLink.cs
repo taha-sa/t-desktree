@@ -102,7 +102,12 @@ public sealed class AppLink : IAsyncDisposable
             {
                 if (d.DriveType != DriveType.Fixed || !d.IsReady) continue;
                 long free = d.AvailableFreeSpace, total = d.TotalSize;
-                if (!DiskAlert.ShouldRaise(_lastAlert, d.Name, free, total, DateTime.UtcNow)) continue;
+                bool raise;
+                lock (_lastAlert)
+                {
+                    raise = DiskAlert.ShouldRaise(_lastAlert, d.Name, free, total, DateTime.UtcNow);
+                }
+                if (!raise) continue;
                 _server.Publish("disk.low", LinkJson.Obj(("drive", d.Name), ("freeBytes", free), ("totalBytes", total), ("freePct", DiskAlert.FreePct(free, total))));
             }
         }

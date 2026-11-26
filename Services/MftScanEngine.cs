@@ -195,7 +195,8 @@ public class MftScanEngine
         }
 
         uint bytesPerCluster = volData.BytesPerCluster;
-        uint recordSize = volData.BytesPerFileRecordSegment > 0 ? volData.BytesPerFileRecordSegment : 1024;
+        if (bytesPerCluster == 0) return null;
+        uint recordSize = volData.BytesPerFileRecordSegment >= 48 ? volData.BytesPerFileRecordSegment : 1024;
         long mftByteOffset = (long)volData.MftStartLcn * bytesPerCluster;
 
         // 2. MFT'nin ilk kaydını (Kayıt 0 - $MFT) oku ve $DATA veri koşularını (data runs) çöz
@@ -265,7 +266,7 @@ public class MftScanEngine
         // 4. Çocukları ebeveynlerine bağla (Parent Linking)
         foreach (var node in nodes.Values)
         {
-            if (node.RecordId == 5) continue; // Root ($Root)
+            if (node.RecordId == 5 || node.RecordId == node.ParentId) continue; // Root ($Root) veya kendi ebeveyni
 
             if (nodes.TryGetValue(node.ParentId, out var parentNode))
             {
@@ -280,13 +281,15 @@ public class MftScanEngine
             return null;
         }
 
-        RollupSizes(rootNode);
+        RollupSizes(rootNode, new HashSet<ulong>());
 
         // 6. Hedef klasörü bul (Eğer tüm disk değil de alt klasör seçilmişse)
         MftNode targetMftNode = rootNode;
         if (!string.Equals(targetPath.TrimEnd('\\'), rootPath.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase))
         {
-            targetMftNode = FindSubNode(rootNode, targetPath.Substring(rootPath.Length)) ?? rootNode;
+            var found = FindSubNode(rootNode, targetPath.Substring(rootPath.Length));
+            if (found == null) return null; // Alt klasör MFT'de bulunamadı (ör. bağlama noktası): klasik motora dön
+            targetMftNode = found;
         }
 
         // 7. FsItem hiyerarşisine dönüştür
@@ -303,7 +306,7 @@ public class MftScanEngine
             IsExpanded = true
         };
 
-        PopulateFsItemTree(targetMftNode, rootItem, targetPath);
+        PopulateFsItemTree(targetMftNode, rootItem, targetPath, new HashSet<ulong>());
         CalculatePercentagesAndSort(rootItem, rootItem.Size);
 
         _stopwatch.Stop();
@@ -353,18 +356,18 @@ public class MftScanEngine
         {
             if (record[0] != 'F' || record[1] != 'I' || record[2] != 'L' || record[3] != 'E') return runs;
 
-            ushort attrOffset = BitConverter.ToUInt16(record, 20);
+            int attrOffset = BitConverter.ToUInt16(record, 20);
             while (attrOffset + 8 <= record.Length)
             {
                 uint attrType = BitConverter.ToUInt32(record, attrOffset);
                 if (attrType == 0xFFFFFFFF || attrType == 0) break;
                 uint attrLen = BitConverter.ToUInt32(record, attrOffset + 4);
-                if (attrLen == 0 || attrOffset + attrLen > record.Length) break;
+                if (attrLen < 8 || attrLen > (uint)(record.Length - attrOffset)) break;
 
                 if (attrType == 0x80) // $DATA
                 {
                     byte nonResident = record[attrOffset + 8];
-                    if (nonResident == 1)
+                    if (nonResident == 1 && attrOffset + 34 <= record.Length)
                     {
                         ushort runOffset = BitConverter.ToUInt16(record, attrOffset + 32);
                         int pos = attrOffset + runOffset;
@@ -376,7 +379,7 @@ public class MftScanEngine
                             int lenBytes = header & 0x0F;
                             int offsetBytes = (header >> 4) & 0x0F;
 
-                            if (lenBytes == 0 || pos + lenBytes + offsetBytes > record.Length) break;
+                            if (lenBytes == 0 || lenBytes > 8 || offsetBytes > 8 || pos + lenBytes + offsetBytes > record.Length) break;
 
                             long clusterCount = 0;
                             for (int i = 0; i < lenBytes; i++)
@@ -401,12 +404,15 @@ public class MftScanEngine
                             long currentLcn = prevLcn + lcnDelta;
                             prevLcn = currentLcn;
 
-                            runs.Add(new DataRun(currentLcn, clusterCount));
+                            if (offsetBytes > 0 && clusterCount > 0 && currentLcn >= 0)
+                            {
+                                runs.Add(new DataRun(currentLcn, clusterCount));
+                            }
                         }
                     }
                     break;
                 }
-                attrOffset += (ushort)attrLen;
+                attrOffset += (int)attrLen;
             }
         }
         catch { }
@@ -453,7 +459,7 @@ public class MftScanEngine
         }
 
         // Nitelikleri (Attributes) tara
-        ushort attrOffset = BitConverter.ToUInt16(buffer, offset + 20);
+        int attrOffset = BitConverter.ToUInt16(buffer, offset + 20);
         string? fileName = null;
         ulong parentRef = 0;
         long fileSize = 0;
@@ -466,12 +472,29 @@ public class MftScanEngine
             uint attrType = BitConverter.ToUInt32(buffer, offset + attrOffset);
             if (attrType == 0xFFFFFFFF || attrType == 0) break;
             uint attrLen = BitConverter.ToUInt32(buffer, offset + attrOffset + 4);
-            if (attrLen == 0 || attrOffset + attrLen > recordSize) break;
+            if (attrLen < 8 || attrLen > (uint)(recordSize - attrOffset)) break;
 
-            if (attrType == 0x30) // $FILE_NAME
+            if (attrType == 0x10) // $STANDARD_INFORMATION
             {
                 byte nonResident = buffer[offset + attrOffset + 8];
-                if (nonResident == 0) // $FILE_NAME her zaman resident'tır
+                if (nonResident == 0 && attrOffset + 22 <= recordSize)
+                {
+                    ushort contentOffset = BitConverter.ToUInt16(buffer, offset + attrOffset + 20);
+                    int cPos = offset + attrOffset + contentOffset;
+                    if (cPos + 16 <= offset + recordSize)
+                    {
+                        long ft = BitConverter.ToInt64(buffer, cPos + 8);
+                        if (ft > 0)
+                        {
+                            try { lastWriteTime = DateTime.FromFileTimeUtc(ft).ToLocalTime(); } catch { }
+                        }
+                    }
+                }
+            }
+            else if (attrType == 0x30) // $FILE_NAME
+            {
+                byte nonResident = buffer[offset + attrOffset + 8];
+                if (nonResident == 0 && attrOffset + 22 <= recordSize) // $FILE_NAME her zaman resident'tır
                 {
                     ushort contentOffset = BitConverter.ToUInt16(buffer, offset + attrOffset + 20);
                     int cPos = offset + attrOffset + contentOffset;
@@ -488,6 +511,15 @@ public class MftScanEngine
                             uint fAttr = BitConverter.ToUInt32(buffer, cPos + 56);
                             byte nameLen = buffer[cPos + 64];
 
+                            if (lastWriteTime == DateTime.MinValue)
+                            {
+                                long ft = BitConverter.ToInt64(buffer, cPos + 16);
+                                if (ft > 0)
+                                {
+                                    try { lastWriteTime = DateTime.FromFileTimeUtc(ft).ToLocalTime(); } catch { }
+                                }
+                            }
+
                             if (cPos + 66 + nameLen * 2 <= offset + recordSize)
                             {
                                 fileName = Encoding.Unicode.GetString(buffer, cPos + 66, nameLen * 2);
@@ -499,23 +531,27 @@ public class MftScanEngine
                     }
                 }
             }
-            else if (attrType == 0x80 && !isDir) // $DATA
+            else if (attrType == 0x80 && !isDir) // $DATA (yalnız adsız ana akış; ADS değil)
             {
                 byte nonResident = buffer[offset + attrOffset + 8];
-                if (nonResident == 0)
+                byte attrNameLen = buffer[offset + attrOffset + 9];
+                if (attrNameLen == 0)
                 {
-                    uint dataLen = BitConverter.ToUInt32(buffer, offset + attrOffset + 16);
-                    fileSize = dataLen;
-                    allocatedSize = NativeFileSystem.AlignToCluster(fileSize, clusterSize);
-                }
-                else if (attrOffset + 56 <= recordSize)
-                {
-                    allocatedSize = BitConverter.ToInt64(buffer, offset + attrOffset + 40);
-                    fileSize = BitConverter.ToInt64(buffer, offset + attrOffset + 48);
+                    if (nonResident == 0 && attrOffset + 20 <= recordSize)
+                    {
+                        uint dataLen = BitConverter.ToUInt32(buffer, offset + attrOffset + 16);
+                        fileSize = dataLen;
+                        allocatedSize = NativeFileSystem.AlignToCluster(fileSize, clusterSize);
+                    }
+                    else if (nonResident != 0 && attrOffset + 56 <= recordSize)
+                    {
+                        allocatedSize = BitConverter.ToInt64(buffer, offset + attrOffset + 40);
+                        fileSize = BitConverter.ToInt64(buffer, offset + attrOffset + 48);
+                    }
                 }
             }
 
-            attrOffset += (ushort)attrLen;
+            attrOffset += (int)attrLen;
         }
 
         if (string.IsNullOrEmpty(fileName)) return;
@@ -579,8 +615,9 @@ public class MftScanEngine
         }
     }
 
-    private static void RollupSizes(MftNode node)
+    private static void RollupSizes(MftNode node, HashSet<ulong> visited)
     {
+        if (!visited.Add(node.RecordId)) return;
         if (node.Children == null || node.Children.Count == 0) return;
 
         long totalSize = 0;
@@ -592,7 +629,7 @@ public class MftScanEngine
         {
             if (child.IsDirectory)
             {
-                RollupSizes(child);
+                RollupSizes(child, visited);
                 totalSize += child.Size;
                 totalAllocated += child.AllocatedSize;
                 totalFiles += child.FileCount;
@@ -628,8 +665,9 @@ public class MftScanEngine
         return target;
     }
 
-    private static void PopulateFsItemTree(MftNode mftNode, FsItem fsItem, string currentPath)
+    private static void PopulateFsItemTree(MftNode mftNode, FsItem fsItem, string currentPath, HashSet<ulong> visited)
     {
+        if (!visited.Add(mftNode.RecordId)) return;
         if (mftNode.Children == null || mftNode.Children.Count == 0) return;
 
         var subFolders = new List<FsItem>();
@@ -655,7 +693,7 @@ public class MftScanEngine
             if (child.IsDirectory)
             {
                 subFolders.Add(item);
-                PopulateFsItemTree(child, item, childPath);
+                PopulateFsItemTree(child, item, childPath, visited);
             }
             else
             {

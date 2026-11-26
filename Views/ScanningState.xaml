@@ -1,6 +1,7 @@
 <UserControl x:Class="AmberTree.Views.ScanningState"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="clr-namespace:AmberTree.Localization"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              Focusable="False">
     <UserControl.Resources>
         <Style x:Key="Counter.Value" TargetType="TextBlock" BasedOn="{StaticResource Text.Mono}">
@@ -10,7 +11,7 @@
     </UserControl.Resources>
     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
         <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Width="560" Margin="24">
-            <TextBlock Text="Taranıyor…" Style="{StaticResource Text.Title}" />
+            <TextBlock Text="{loc:Text Scanning}" Style="{StaticResource Text.Title}" />
             <TextBlock Text="{Binding StatusText}" Style="{StaticResource Text.Secondary}" Margin="0,4,0,16"
                        TextTrimming="CharacterEllipsis" />
             <ProgressBar IsIndeterminate="True" Height="4" Margin="0,0,0,24" />
@@ -18,25 +19,25 @@
             <UniformGrid Columns="4">
                 <Border Style="{StaticResource Border.Card}" Margin="0,0,8,0" Padding="12">
                     <StackPanel>
-                        <TextBlock Text="Dosya" Style="{StaticResource Text.Muted}" />
+                        <TextBlock Text="{loc:Text File}" Style="{StaticResource Text.Muted}" />
                         <TextBlock Text="{Binding ScannedFiles, StringFormat={}{0:N0}}" Style="{StaticResource Counter.Value}" Margin="0,4,0,0" />
                     </StackPanel>
                 </Border>
                 <Border Style="{StaticResource Border.Card}" Margin="0,0,8,0" Padding="12">
                     <StackPanel>
-                        <TextBlock Text="Klasör" Style="{StaticResource Text.Muted}" />
+                        <TextBlock Text="{loc:Text Folder}" Style="{StaticResource Text.Muted}" />
                         <TextBlock Text="{Binding ScannedFolders, StringFormat={}{0:N0}}" Style="{StaticResource Counter.Value}" Margin="0,4,0,0" />
                     </StackPanel>
                 </Border>
                 <Border Style="{StaticResource Border.Card}" Margin="0,0,8,0" Padding="12">
                     <StackPanel>
-                        <TextBlock Text="Boyut" Style="{StaticResource Text.Muted}" />
+                        <TextBlock Text="{loc:Text Size}" Style="{StaticResource Text.Muted}" />
                         <TextBlock Text="{Binding ScannedBytesDisplay}" Style="{StaticResource Counter.Value}" Margin="0,4,0,0" />
                     </StackPanel>
                 </Border>
                 <Border Style="{StaticResource Border.Card}" Padding="12">
                     <StackPanel>
-                        <TextBlock Text="Hız" Style="{StaticResource Text.Muted}" />
+                        <TextBlock Text="{loc:Text Speed}" Style="{StaticResource Text.Muted}" />
                         <TextBlock Text="{Binding ScanSpeed}" Style="{StaticResource Text.Mono}" FontSize="13" FontWeight="SemiBold"
                                    Margin="0,8,0,0" TextTrimming="CharacterEllipsis" />
                     </StackPanel>
@@ -46,7 +47,7 @@
             <Border Style="{StaticResource Border.Card}" Margin="0,8,0,0" Padding="12">
                 <StackPanel>
                     <Grid>
-                        <TextBlock Text="Şu an taranan" Style="{StaticResource Text.Muted}" />
+                        <TextBlock Text="{loc:Text CurrentPath}" Style="{StaticResource Text.Muted}" />
                         <TextBlock Text="{Binding ElapsedScanTime}" Style="{StaticResource Text.Mono}"
                                    HorizontalAlignment="Right" Foreground="{DynamicResource Brush.Text.Secondary}" />
                     </Grid>
@@ -56,10 +57,10 @@
             </Border>
 
             <Button Style="{StaticResource Button.Danger}" Command="{Binding StopScanCommand}" Margin="0,24,0,0"
-                    HorizontalAlignment="Center" MinWidth="140" AutomationProperties.Name="Taramayı durdur">
+                    HorizontalAlignment="Center" MinWidth="140" AutomationProperties.Name="{loc:Text StopScan}">
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Text="{StaticResource Icon.Stop}" FontFamily="{DynamicResource Font.Icons}" FontSize="13" Margin="0,0,8,0" VerticalAlignment="Center" />
-                    <TextBlock Text="Durdur (Esc)" VerticalAlignment="Center" />
+                    <TextBlock Text="{loc:Text StopShortcut}" VerticalAlignment="Center" />
                 </StackPanel>
             </Button>
         </StackPanel>

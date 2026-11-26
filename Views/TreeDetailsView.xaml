@@ -1,6 +1,7 @@
 <UserControl x:Class="AmberTree.Views.TreeDetailsView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="clr-namespace:AmberTree.Localization"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:views="clr-namespace:AmberTree.Views"
              xmlns:models="clr-namespace:AmberTree.Models"
              Focusable="False">
@@ -106,7 +107,7 @@
 
                 <TextBlock Grid.Column="4" Text="{Binding FileCount, StringFormat={}{0:N0}}" Style="{StaticResource Cell.NumDir}" />
                 <TextBlock Grid.Column="5" Text="{Binding FolderCount, StringFormat={}{0:N0}}" Style="{StaticResource Cell.NumDir}" />
-                <TextBlock Grid.Column="6" Text="{Binding LastModified, StringFormat={}{0:dd.MM.yyyy HH:mm}}" Style="{StaticResource Cell.Num}"
+                <TextBlock Grid.Column="6" Text="{Binding LastModified, StringFormat={loc:Text DateFormat}}" Style="{StaticResource Cell.Num}"
                            Foreground="{DynamicResource Brush.Text.Secondary}" />
                 <TextBlock Grid.Column="7" Text="{Binding AttributesDisplay}" Style="{StaticResource Cell.Num}"
                            Foreground="{DynamicResource Brush.Text.Muted}" />
@@ -135,14 +136,14 @@
                     <ColumnDefinition Width="{Binding Modified, Source={StaticResource Cols}}" />
                     <ColumnDefinition Width="{Binding Attr, Source={StaticResource Cols}}" />
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="Ad" Style="{StaticResource Head.Text}" Margin="50,0,8,0" />
-                <TextBlock Grid.Column="1" Text="Boyut" Style="{StaticResource Head.Right}" />
-                <TextBlock Grid.Column="2" Text="Diskte" Style="{StaticResource Head.Right}" ToolTip="KÃ¼meye yuvarlanmÄ±ÅŸ, diskte kapladÄ±ÄŸÄ± alan" />
-                <TextBlock Grid.Column="3" Text="Ãœst %'si" Style="{StaticResource Head.Text}" />
-                <TextBlock Grid.Column="4" Text="Dosya" Style="{StaticResource Head.Right}" />
-                <TextBlock Grid.Column="5" Text="KlasÃ¶r" Style="{StaticResource Head.Right}" />
-                <TextBlock Grid.Column="6" Text="Son deÄŸiÅŸiklik" Style="{StaticResource Head.Right}" />
-                <TextBlock Grid.Column="7" Text="Ã–znitelik" Style="{StaticResource Head.Right}" />
+                <TextBlock Text="{loc:Text Name}" Style="{StaticResource Head.Text}" Margin="50,0,8,0" />
+                <TextBlock Grid.Column="1" Text="{loc:Text Size}" Style="{StaticResource Head.Right}" />
+                <TextBlock Grid.Column="2" Text="{loc:Text OnDisk}" Style="{StaticResource Head.Right}" ToolTip="{loc:Text AllocatedHelp}" />
+                <TextBlock Grid.Column="3" Text="{loc:Text ParentPercent}" Style="{StaticResource Head.Text}" />
+                <TextBlock Grid.Column="4" Text="{loc:Text File}" Style="{StaticResource Head.Right}" />
+                <TextBlock Grid.Column="5" Text="{loc:Text FolderDuplicate}" Style="{StaticResource Head.Right}" />
+                <TextBlock Grid.Column="6" Text="{loc:Text LastModified}" Style="{StaticResource Head.Right}" />
+                <TextBlock Grid.Column="7" Text="{loc:Text Attributes}" Style="{StaticResource Head.Right}" />
 
                 <Thumb Grid.Column="1" Tag="Size" Style="{StaticResource Splitter.Handle}" DragDelta="Splitter_DragDelta" />
                 <Thumb Grid.Column="2" Tag="Allocated" Style="{StaticResource Splitter.Handle}" DragDelta="Splitter_DragDelta" />
@@ -180,11 +181,11 @@
                 <TextBlock Text="{StaticResource Icon.Search}" Style="{StaticResource Text.Icon}" FontSize="32"
                            Foreground="{DynamicResource Brush.Text.Muted}" HorizontalAlignment="Center" />
                 <TextBlock Style="{StaticResource Text.Subtitle}" Margin="0,16,0,0" HorizontalAlignment="Center">
-                    <Run Text="â€œ" /><Run Text="{Binding SearchText, Mode=OneWay}" /><Run Text="â€ iÃ§in sonuÃ§ yok" />
+                    <Run Text="{loc:Text QuoteStart}" /><Run Text="{Binding SearchText, Mode=OneWay}" /><Run Text="{loc:Text SearchNoResults}" />
                 </TextBlock>
-                <TextBlock Text="FarklÄ± bir ad deneyin ya da aramayÄ± temizleyin." Style="{StaticResource Text.Secondary}"
+                <TextBlock Text="{loc:Text SearchNoResultsHelp}" Style="{StaticResource Text.Secondary}"
                            Margin="0,4,0,16" HorizontalAlignment="Center" />
-                <Button Content="AramayÄ± temizle" Command="{Binding ClearSearchCommand}" HorizontalAlignment="Center" />
+                <Button Content="{loc:Text ClearSearchDuplicate}" Command="{Binding ClearSearchCommand}" HorizontalAlignment="Center" />
             </StackPanel>
         </Border>
     </Grid>

@@ -1,3 +1,4 @@
+using AmberTree.Localization;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -46,13 +47,13 @@ public class MainWindowViewModel : INotifyPropertyChanged
     private string _selectedPath = "C:\\";
     private DriveInfoModel? _selectedDrive;
     private bool _isScanning;
-    private string _statusText = "Hazır. Bir sürücü ya da klasör seçip Tara'ya basın.";
+    private string _statusText = Strings.Ready;
     private string _currentScanPath = string.Empty;
     private long _scannedFiles;
     private long _scannedFolders;
     private long _scannedBytes;
     private string _elapsedScanTime = "00:00:00";
-    private string _scanSpeed = "0 dosya/sn";
+    private string _scanSpeed = Strings.IdleSpeed;
     private FsItem? _rootItem;
     private FsItem? _selectedItem;
     private SizeUnitMode _currentUnitMode = SizeUnitMode.Auto;
@@ -355,7 +356,7 @@ public class MainWindowViewModel : INotifyPropertyChanged
     public string TotalAllocatedDisplay => SizeFormatter.FormatBytes(RootItem?.AllocatedSize ?? 0, CurrentUnitMode);
     public string TotalFilesDisplay => (RootItem?.FileCount ?? 0).ToString("N0", CultureInfo.CurrentCulture);
     public string TotalFoldersDisplay => (RootItem?.FolderCount ?? 0).ToString("N0", CultureInfo.CurrentCulture);
-    public string ScanDurationDisplay => IsScanning ? ElapsedScanTime : $"{_lastScanDuration.TotalSeconds:F1} sn";
+    public string ScanDurationDisplay => IsScanning ? ElapsedScanTime : Strings.Format(Strings.Seconds, _lastScanDuration.TotalSeconds);
 
     /// <summary>Tarama sonrasi taranan yolun, tarama oncesi secili surucunun doluluk yuzdesi (0-100).</summary>
     public double DriveUsedPercent => ResolveSummaryDrive()?.UsedPercentage ?? 0.0;
@@ -530,7 +531,7 @@ public class MainWindowViewModel : INotifyPropertyChanged
             p => !IsScanning && !_isDeleting && (p is FsItem { IsDirectory: true } || (p == null && SelectedItem is { IsDirectory: true })));
         OpenInExplorerCommand = new RelayCommand(p => ShellAction(p, ShellHelper.TryOpenInExplorer, null), HasTarget);
         OpenTerminalCommand = new RelayCommand(p => ShellAction(p, ShellHelper.TryOpenTerminal, null), HasTarget);
-        CopyPathCommand = new RelayCommand(p => ShellAction(p, ShellHelper.TryCopyPath, "Yol panoya kopyalandı."), HasTarget);
+        CopyPathCommand = new RelayCommand(p => ShellAction(p, ShellHelper.TryCopyPath, Strings.PathCopied), HasTarget);
 
         ToggleThemeCommand = new RelayCommand(_ =>
         {
@@ -588,8 +589,9 @@ public class MainWindowViewModel : INotifyPropertyChanged
                 {
                     1 => ActiveView.Tree,
                     2 => ActiveView.Treemap,
-                    3 => ActiveView.TopFiles,
+                    3 => ActiveView.Extensions,
                     4 => ActiveView.TopFiles,
+                    5 => ActiveView.Age,
                     _ => ActiveView.Tree
                 };
                 break;
@@ -600,8 +602,9 @@ public class MainWindowViewModel : INotifyPropertyChanged
                     {
                         1 => ActiveView.Tree,
                         2 => ActiveView.Treemap,
-                        3 => ActiveView.TopFiles,
+                        3 => ActiveView.Extensions,
                         4 => ActiveView.TopFiles,
+                        5 => ActiveView.Age,
                         _ => ActiveView.Tree
                     };
                 }
@@ -639,7 +642,7 @@ public class MainWindowViewModel : INotifyPropertyChanged
             ScannedFolders = p.FoldersScanned;
             ScannedBytes = p.BytesScanned;
             ElapsedScanTime = p.Elapsed.ToString(@"hh\:mm\:ss\.f");
-            ScanSpeed = $"{p.FilesPerSecond:N0} dosya/sn";
+            ScanSpeed = Strings.Format(Strings.FilesPerSecond, p.FilesPerSecond);
 
             if (RootItem != null)
             {
@@ -661,7 +664,7 @@ public class MainWindowViewModel : INotifyPropertyChanged
         ScannedFolders = 0;
         ScannedBytes = 0;
         ElapsedScanTime = "00:00:00";
-        ScanSpeed = "0 dosya/sn";
+        ScanSpeed = Strings.IdleSpeed;
     }
 
     public async Task StartScanAsync()
@@ -670,7 +673,7 @@ public class MainWindowViewModel : INotifyPropertyChanged
 
         if (string.IsNullOrWhiteSpace(SelectedPath) || !Directory.Exists(SelectedPath))
         {
-            SetError("Geçerli bir klasör ya da sürücü yolu seçin.");
+            SetError(Strings.InvalidPath);
             return;
         }
 
@@ -697,7 +700,7 @@ public class MainWindowViewModel : INotifyPropertyChanged
 
         ViewState = ViewState.Results;
         IsScanning = true;
-        StatusText = $"Taranıyor: {scanPath}...";
+        StatusText = Strings.Format(Strings.ScanningPath, scanPath);
         _cts = new CancellationTokenSource();
 
         try
@@ -707,7 +710,7 @@ public class MainWindowViewModel : INotifyPropertyChanged
 
             if (MftScanEngine.IsSupported(scanPath))
             {
-                StatusText = $"MFT analizi yapılıyor (Ultra Hızlı): {scanPath}...";
+                StatusText = Strings.Format(Strings.ScanningMft, scanPath);
                 try
                 {
                     result = await _mftScanEngine.TryScanAsync(scanPath, _cts.Token, RootItem);
@@ -725,13 +728,13 @@ public class MainWindowViewModel : INotifyPropertyChanged
 
             if (result == null && !_cts.IsCancellationRequested)
             {
-                StatusText = $"Taranıyor: {scanPath}...";
+                StatusText = Strings.Format(Strings.ScanningPath, scanPath);
                 result = await _scanEngine.ScanAsync(scanPath, _cts.Token, RootItem);
             }
 
             if (result == null)
             {
-                SetError("Tarama sonuç üretmedi.");
+                SetError(Strings.NoScanResult);
                 ViewState = ViewState.Empty;
                 return;
             }
@@ -743,21 +746,22 @@ public class MainWindowViewModel : INotifyPropertyChanged
 
             RootItem.NotifySizesChanged();
 
-            ReplaceCollection(Extensions, result.Extensions);
-            ReplaceCollection(TopFiles, result.TopFiles);
-            ReplaceCollection(AgeDistribution, result.AgeDistribution);
+            var stats = await Task.Run(() => TreeMaintenance.ComputeStatistics(result.Root, DateTime.Now));
+            ReplaceCollection(Extensions, stats.Extensions);
+            ReplaceCollection(TopFiles, stats.TopFiles);
+            ReplaceCollection(AgeDistribution, stats.AgeDistribution);
 
             ViewState = ViewState.Results;
             RaiseSummary();
 
             if (result.WasCancelled)
             {
-                StatusText = $"Tarama iptal edildi: {result.Elapsed.TotalSeconds:F2} sn ({result.TotalFiles:N0} dosya, {SizeFormatter.FormatBytes(result.TotalSize, CurrentUnitMode)} tarandı)";
+                StatusText = Strings.Format(Strings.ScanCancelledSummary, result.Elapsed.TotalSeconds, result.TotalFiles, SizeFormatter.FormatBytes(result.TotalSize, CurrentUnitMode));
             }
             else
             {
-                string engineTag = usedMft ? " (MFT Ultra Hızlı)" : string.Empty;
-                StatusText = $"Tarama tamamlandı{engineTag}: {result.Elapsed.TotalSeconds:F2} sn ({result.TotalFiles:N0} dosya, {result.TotalFolders:N0} klasör, {SizeFormatter.FormatBytes(result.TotalSize, CurrentUnitMode)})";
+                string engineTag = usedMft ? Strings.MftTag : string.Empty;
+                StatusText = Strings.Format(Strings.ScanComplete, engineTag, result.Elapsed.TotalSeconds, result.TotalFiles, result.TotalFolders, SizeFormatter.FormatBytes(result.TotalSize, CurrentUnitMode));
                 LastScannedPath = scanPath;
                 SaveLastScannedPath(scanPath);
                 ScanFinished?.Invoke(this, new ScanFinishedEventArgs(scanPath, result.TotalSize, result.Elapsed));
@@ -766,13 +770,13 @@ public class MainWindowViewModel : INotifyPropertyChanged
         }
         catch (OperationCanceledException)
         {
-            StatusText = "Tarama kullanıcı tarafından iptal edildi.";
+            StatusText = Strings.ScanCancelled;
             ViewState = RootItem != null ? ViewState.Results : ViewState.Empty;
         }
         catch (Exception ex)
         {
-            StatusText = $"Tarama başarısız: {ex.Message}";
-            SetError($"Tarama sırasında hata oluştu: {ex.Message}");
+            StatusText = Strings.Format(Strings.ScanFailed, ex.Message);
+            SetError(Strings.Format(Strings.ScanError, ex.Message));
             ViewState = RootItem != null ? ViewState.Results : ViewState.Error;
         }
         finally
@@ -788,7 +792,7 @@ public class MainWindowViewModel : INotifyPropertyChanged
         if (_cts != null && !_cts.IsCancellationRequested)
         {
             _cts.Cancel();
-            StatusText = "Tarama durduruluyor...";
+            StatusText = Strings.StoppingScan;
         }
     }
 
@@ -836,10 +840,10 @@ public class MainWindowViewModel : INotifyPropertyChanged
         var item = Resolve(param);
         if (item == null) return;
 
-        string title = permanent ? "Kalıcı silme" : "Geri dönüşüm kutusuna taşı";
+        string title = permanent ? Strings.PermanentDeletion : Strings.RecycleTitle;
         string message = permanent
-            ? $"'{item.Name}' kalıcı olarak silinecek.\n\nBu işlem geri alınamaz. Devam edilsin mi?"
-            : $"'{item.Name}' geri dönüşüm kutusuna taşınsın mı?";
+            ? Strings.Format(Strings.ConfirmDelete, item.Name)
+            : Strings.Format(Strings.ConfirmRecycle, item.Name);
         if (!_dialogs.Confirm(title, message, permanent)) return;
 
         _isDeleting = true;
@@ -859,7 +863,7 @@ public class MainWindowViewModel : INotifyPropertyChanged
                     return (r, e);
                 }
                 bool moved = ShellHelper.MoveToRecycleBin(path);
-                return (moved, moved ? null : "Geri dönüşüm kutusuna taşınamadı (dosya kullanımda ya da izin yok olabilir).");
+                return (moved, moved ? null : Strings.RecycleFailed);
             });
         }
         catch (Exception ex)
@@ -875,14 +879,14 @@ public class MainWindowViewModel : INotifyPropertyChanged
 
         if (!ok)
         {
-            SetError($"'{name}' silinemedi: {error}");
+            SetError(Strings.Format(Strings.DeleteFailed, name, error ?? Strings.ActionFailed));
             return;
         }
 
         ApplyRemoval(item);
         StatusText = permanent
-            ? $"'{name}' kalıcı olarak silindi ({SizeFormatter.FormatBytes(freed, CurrentUnitMode)} boşaldı)."
-            : $"'{name}' geri dönüşüm kutusuna taşındı ({SizeFormatter.FormatBytes(freed, CurrentUnitMode)} boşaldı).";
+            ? Strings.Format(Strings.Deleted, name, SizeFormatter.FormatBytes(freed, CurrentUnitMode))
+            : Strings.Format(Strings.Recycled, name, SizeFormatter.FormatBytes(freed, CurrentUnitMode));
     }
 
     /// <summary>Diskte silinmis dugumu agactan cikarir ve tum turev verileri gunceller.</summary>
@@ -945,7 +949,7 @@ public class MainWindowViewModel : INotifyPropertyChanged
 
         if (!Directory.Exists(item.FullPath))
         {
-            SetError($"Klasör artık yok: {item.FullPath}");
+            SetError(Strings.Format(Strings.FolderMissing, item.FullPath));
             return;
         }
 
@@ -960,7 +964,7 @@ public class MainWindowViewModel : INotifyPropertyChanged
         ErrorMessage = string.Empty;
         ResetCounters();
         IsScanning = true;
-        StatusText = $"Klasör yeniden taranıyor: {item.FullPath}...";
+        StatusText = Strings.Format(Strings.RescanningPath, item.FullPath);
         _cts = new CancellationTokenSource();
 
         try
@@ -969,7 +973,7 @@ public class MainWindowViewModel : INotifyPropertyChanged
 
             if (result.WasCancelled || result.Root == null)
             {
-                StatusText = "Klasör yeniden tarama iptal edildi; mevcut sonuçlar korundu.";
+                StatusText = Strings.RescanCancelled;
                 return;
             }
 
@@ -978,7 +982,7 @@ public class MainWindowViewModel : INotifyPropertyChanged
             int index = parent == null ? -1 : parent.Children.IndexOf(item);
             if (parent == null || index < 0)
             {
-                StatusText = "Klasör ağaçta bulunamadı; yeniden tarama uygulanmadı.";
+                StatusText = Strings.FolderNotInTree;
                 return;
             }
 
@@ -1004,16 +1008,16 @@ public class MainWindowViewModel : INotifyPropertyChanged
             if (treemapInside) TreemapRoot = fresh;
 
             AfterTreeChanged(parent);
-            StatusText = $"Klasör yeniden tarandı: {fresh.FullPath} ({fresh.FileCount:N0} dosya, {SizeFormatter.FormatBytes(fresh.Size, CurrentUnitMode)}, {result.Elapsed.TotalSeconds:F2} sn)";
+            StatusText = Strings.Format(Strings.RescanComplete, fresh.FullPath, fresh.FileCount, SizeFormatter.FormatBytes(fresh.Size, CurrentUnitMode), result.Elapsed.TotalSeconds);
         }
         catch (OperationCanceledException)
         {
-            StatusText = "Klasör yeniden tarama iptal edildi; mevcut sonuçlar korundu.";
+            StatusText = Strings.RescanCancelled;
         }
         catch (Exception ex)
         {
-            StatusText = $"Yeniden tarama başarısız: {ex.Message}";
-            SetError($"Klasör yeniden taranırken hata oluştu: {ex.Message}");
+            StatusText = Strings.Format(Strings.RescanFailed, ex.Message);
+            SetError(Strings.Format(Strings.RescanError, ex.Message));
         }
         finally
         {
@@ -1040,7 +1044,7 @@ public class MainWindowViewModel : INotifyPropertyChanged
 
         if (!op(path, out var error))
         {
-            SetError(error ?? "İşlem gerçekleştirilemedi.");
+            SetError(error ?? Strings.ActionFailed);
         }
         else if (successMessage != null)
         {
@@ -1058,9 +1062,9 @@ public class MainWindowViewModel : INotifyPropertyChanged
         string stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
         string filter = kind switch
         {
-            "csv" => "CSV dosyası (*.csv)|*.csv",
-            "json" => "JSON dosyası (*.json)|*.json",
-            _ => "Metin raporu (*.txt)|*.txt"
+            "csv" => Strings.CsvFilter,
+            "json" => Strings.JsonFilter,
+            _ => Strings.TextFilter
         };
         string? file = _dialogs.PickSaveFile(filter, $"T-DeskTree_Rapor_{stamp}.{kind}");
         if (string.IsNullOrEmpty(file)) return;
@@ -1093,12 +1097,12 @@ public class MainWindowViewModel : INotifyPropertyChanged
                 }
             });
 
-            string label = kind switch { "csv" => "CSV", "json" => "JSON", _ => "Metin" };
-            StatusText = $"{label} raporu dışa aktarıldı: {file}";
+            string label = kind switch { "csv" => "CSV", "json" => "JSON", _ => Strings.TextLabel };
+            StatusText = Strings.Format(Strings.ExportComplete, label, file);
         }
         catch (Exception ex)
         {
-            SetError($"Rapor dışa aktarılamadı: {ex.Message}");
+            SetError(Strings.Format(Strings.ExportFailed, ex.Message));
         }
     }
 
@@ -1114,20 +1118,32 @@ public class MainWindowViewModel : INotifyPropertyChanged
         }
         bool isEmpty = string.IsNullOrWhiteSpace(query);
 
-        void FilterNode(FsItem node)
+        // Derin ağaçlarda StackOverflow önlemek için yinelemeli son-sıra (post-order) gezinme.
+        var order = new List<FsItem>();
+        var stack = new Stack<FsItem>();
+        stack.Push(RootItem);
+        while (stack.Count > 0)
         {
-            bool matches = isEmpty || node.Name.Contains(query, StringComparison.OrdinalIgnoreCase);
-            bool anyChildMatches = false;
-
+            var node = stack.Pop();
+            order.Add(node);
             foreach (var child in node.Children)
             {
-                FilterNode(child);
+                stack.Push(child);
+            }
+        }
+        for (int i = order.Count - 1; i >= 0; i--)
+        {
+            var node = order[i];
+            bool matches = isEmpty || node.Name.Contains(query, StringComparison.OrdinalIgnoreCase);
+            bool anyChildMatches = false;
+            foreach (var child in node.Children)
+            {
                 if (!child.IsFilteredOut)
                 {
                     anyChildMatches = true;
+                    break;
                 }
             }
-
             node.IsFilteredOut = !matches && !anyChildMatches;
             if (anyChildMatches && !isEmpty)
             {
@@ -1135,7 +1151,6 @@ public class MainWindowViewModel : INotifyPropertyChanged
             }
         }
 
-        FilterNode(RootItem);
         OnPropertyChanged(nameof(HasSearchResults));
         OnPropertyChanged(nameof(ShowNoSearchResults));
     }

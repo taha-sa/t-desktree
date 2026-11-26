@@ -1,3 +1,4 @@
+using AmberTree.Localization;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -20,7 +21,7 @@ public partial class CrashPreviewDialog : Window
         InitializeComponent();
         _report = report;
         _pending = pending;
-        Heading.Text = pending ? "Uygulama beklenmedik şekilde kapandı" : "Hata raporu";
+        Heading.Text = pending ? Strings.CrashHeading : Strings.ReportTitle;
         Preview.Text = CrashReporter.GetReportText(report);
         Closed += (_, _) => { if (_pending && !_sent) CrashReporter.MarkDismissed(_report); };
     }
@@ -45,7 +46,7 @@ public partial class CrashPreviewDialog : Window
             RuntimeInformation.OSDescription + " (" + Environment.OSVersion.Version + ")",
             RuntimeInformation.FrameworkDescription, CultureInfo.CurrentCulture.Name,
             DateTime.UtcNow - process.StartTime.ToUniversalTime(),
-            new ExceptionDetails("Manual report", "Kullanıcı tarafından oluşturuldu", null, []), lines.ToArray());
+            new ExceptionDetails("Manual report", Strings.ManualReport, null, []), lines.ToArray());
     }
 
     private void Send_Click(object sender, RoutedEventArgs e)
@@ -60,14 +61,14 @@ public partial class CrashPreviewDialog : Window
         catch (Exception ex)
         {
             Log.Error("Could not open report", ex);
-            MessageBox.Show("Rapor açılamadı: " + ex.Message, "T-DeskTree", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(Strings.ReportOpenFailed + ex.Message, "T-DeskTree", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 
     private void Copy_Click(object sender, RoutedEventArgs e)
     {
         try { Clipboard.SetText(Preview.Text); }
-        catch (Exception ex) { MessageBox.Show("Rapor kopyalanamadı: " + ex.Message, "T-DeskTree", MessageBoxButton.OK, MessageBoxImage.Warning); }
+        catch (Exception ex) { MessageBox.Show(Strings.ReportCopyFailed + ex.Message, "T-DeskTree", MessageBoxButton.OK, MessageBoxImage.Warning); }
     }
     private void Close_Click(object sender, RoutedEventArgs e) => Close();
 }

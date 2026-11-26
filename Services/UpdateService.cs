@@ -1,3 +1,4 @@
+using AmberTree.Localization;
 using System;
 using System.Threading.Tasks;
 using System.Windows;
@@ -28,7 +29,8 @@ public sealed class UpdateBannerViewModel : ObservableBase
 
     /// <summary>Tek denetleyici: arka plan kontrolü ve T-Link standart komutları (app.update.check/install) bunu paylaşır.</summary>
     public UpdateController Controller { get; }
-    private bool _visible, _downloading, _launching, _notesOpen, _failed, _checking;
+    private volatile bool _visible;
+    private bool _downloading, _launching, _notesOpen, _failed, _checking;
     private string _checkStatus = "";
     private string _title = "", _notes = "", _error = "";
     private double _progress;
@@ -36,9 +38,9 @@ public sealed class UpdateBannerViewModel : ObservableBase
     public UpdateBannerViewModel()
     {
         UpdateCommand = new RelayCommand(_ => _ = StartAsync(), _ => !Downloading && _ctl?.Info != null);
-        LaterCommand = new RelayCommand(_ => { _ctl?.Later(); Hide(); });
-        SkipCommand = new RelayCommand(_ => { _ctl?.Skip(); Hide(); });
-        CancelCommand = new RelayCommand(_ => Controller.Cancel(), _ => _downloading);
+        LaterCommand = new RelayCommand(_ => { if (!CanDefer) return; _ctl?.Later(); Hide(); }, _ => CanDefer);
+        SkipCommand = new RelayCommand(_ => { if (!CanDefer) return; _ctl?.Skip(); Hide(); }, _ => CanDefer);
+        CancelCommand = new RelayCommand(_ => { if (_ctl?.Info?.IsRequired != true) _ctl?.Cancel(); }, _ => _downloading && _ctl?.Info?.IsRequired != true);
         CheckCommand = new RelayCommand(_ => _ = CheckManualAsync(), _ => !_checking && !_downloading && !_launching);
         ToggleNotesCommand = new RelayCommand(_ => NotesOpen = !NotesOpen);
         Controller = new UpdateController(new UpdateChecker(MakeOptions()));
@@ -61,6 +63,7 @@ public sealed class UpdateBannerViewModel : ObservableBase
     public bool IsBannerVisible { get => _visible; private set { if (_visible != value) { _visible = value; Raise(nameof(IsBannerVisible)); } } }
     public bool Downloading { get => _downloading; private set { if (_downloading != value) { _downloading = value; Raise(nameof(Downloading)); Raise(nameof(NotDownloading)); Raise(nameof(ShowProgress)); } } }
     public bool NotDownloading => !_downloading && !_launching;
+    public bool CanDefer => NotDownloading && _ctl?.Info?.IsRequired != true;
     /// <summary>Yardımcı başlatılıyor: belirsiz ilerleme, "Yeniden başlatılıyor…".</summary>
     public bool Launching { get => _launching; private set { if (_launching != value) { _launching = value; Raise(nameof(Launching)); Raise(nameof(NotDownloading)); } } }
     public bool ShowProgress => _downloading;
@@ -73,7 +76,7 @@ public sealed class UpdateBannerViewModel : ObservableBase
     public bool HasNotes => !string.IsNullOrWhiteSpace(_notes);
     public string Error { get => _error; private set { _error = value; Raise(nameof(Error)); } }
     public double Progress { get => _progress; private set { _progress = value; Raise(nameof(Progress)); Raise(nameof(ProgressText)); } }
-    public string ProgressText => $"%{(int)Math.Round(_progress)}";
+    public string ProgressText => (_progress / 100).ToString("P0", System.Globalization.CultureInfo.CurrentCulture);
 
     /// <summary>Açılıştan <paramref name="delay"/> sonra (varsayılan 30 sn) arka planda sürüm kontrolü.</summary>
     public void ScheduleCheck(TimeSpan? delay = null, Action<UpdateInfo>? onAvailable = null)
@@ -98,7 +101,7 @@ public sealed class UpdateBannerViewModel : ObservableBase
     private void Show(UpdateController ctl)
     {
         _ctl = ctl;
-        Title = $"Yeni sürüm {ctl.Info!.NewVersion} hazır";
+        Title = Strings.Format(Strings.NewVersion, ctl.Info!.NewVersion);
         Notes = ctl.Info.Notes ?? "";
         Error = "";
         Failed = false;
@@ -114,24 +117,24 @@ public sealed class UpdateBannerViewModel : ObservableBase
     {
         if (Controller.IsBusy || _checking) return;
         Checking = true;
-        CheckStatus = "Denetleniyor…";
+        CheckStatus = Strings.Checking;
         try
         {
             bool found = await Controller.CheckNow(true).ConfigureAwait(false);
             var ctl = Controller;
             if (found && ctl.Info != null)
-                OnUi(() => { Show(ctl); CheckStatus = $"Yeni sürüm {ctl.Info!.NewVersion} hazır."; });
+                OnUi(() => { Show(ctl); CheckStatus = Strings.Format(Strings.NewVersionStatus, ctl.Info!.NewVersion); });
             else
             {
                 var err = ctl.Error;
                 OnUi(() =>
                 {
                     if (!_downloading && !_launching) Hide();
-                    CheckStatus = string.IsNullOrWhiteSpace(err) ? "Güncelsiniz." : "Denetlenemedi: " + err;
+                    CheckStatus = string.IsNullOrWhiteSpace(err) ? Strings.UpToDate : Strings.CheckFailed + err;
                 });
             }
         }
-        catch (Exception ex) { OnUi(() => CheckStatus = "Denetlenemedi: " + ex.Message); }
+        catch (Exception ex) { OnUi(() => CheckStatus = Strings.CheckFailed + ex.Message); }
         finally { OnUi(() => Checking = false); }
     }
 
@@ -160,12 +163,12 @@ public sealed class UpdateBannerViewModel : ObservableBase
 
     private static string FriendlyError(string? e)
     {
-        if (string.IsNullOrWhiteSpace(e)) return "Güncelleme indirilemedi";
-        if (e.Contains("SHA-256")) return "Dosya doğrulaması başarısız (bozuk indirme).";
-        if (e.Contains("signature", StringComparison.OrdinalIgnoreCase)) return "Güncelleme imzası geçersiz.";
-        if (e.Contains("https")) return "Güvenli olmayan indirme adresi reddedildi.";
-        if (e.Contains("canceled", StringComparison.OrdinalIgnoreCase)) return "Güncelleme iptal edildi.";
-        return "Güncelleme başarısız: " + e;
+        if (string.IsNullOrWhiteSpace(e)) return Strings.UpdateDownloadFailed;
+        if (e.Contains("SHA-256")) return Strings.UpdateHashFailed;
+        if (e.Contains("signature", StringComparison.OrdinalIgnoreCase)) return Strings.UpdateSignatureFailed;
+        if (e.Contains("https")) return Strings.UpdateAddressRejected;
+        if (e.Contains("canceled", StringComparison.OrdinalIgnoreCase)) return Strings.UpdateCancelled;
+        return Strings.UpdateFailed + e;
     }
 
     private static void OnUi(Action a)

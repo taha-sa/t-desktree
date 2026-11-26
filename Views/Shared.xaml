@@ -1,5 +1,6 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:loc="clr-namespace:AmberTree.Localization"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:conv="clr-namespace:AmberTree.Converters"
                     xmlns:svc="clr-namespace:AmberTree.Services">
 
@@ -141,45 +142,45 @@
 
     <!-- Sag tik menusu: agac ve treemap (parametre = tiklanan FsItem; Tag = ViewModel) -->
     <ContextMenu x:Key="ItemContextMenu">
-        <MenuItem Header="Explorer'da aÃ§" Icon="{StaticResource Icon.Explorer}"
+        <MenuItem Header="{loc:Text OpenExplorer}" Icon="{StaticResource Icon.Explorer}"
                   Command="{Binding PlacementTarget.Tag.OpenInExplorerCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                   CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
-        <MenuItem Header="Terminalde aÃ§" Icon="{StaticResource Icon.Terminal}"
+        <MenuItem Header="{loc:Text OpenTerminal}" Icon="{StaticResource Icon.Terminal}"
                   Command="{Binding PlacementTarget.Tag.OpenTerminalCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                   CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
-        <MenuItem Header="Yolu kopyala" Icon="{StaticResource Icon.Copy}"
+        <MenuItem Header="{loc:Text CopyPath}" Icon="{StaticResource Icon.Copy}"
                   Command="{Binding PlacementTarget.Tag.CopyPathCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                   CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
         <Separator Visibility="{Binding PlacementTarget.DataContext.IsDirectory, RelativeSource={RelativeSource AncestorType=ContextMenu}, Converter={StaticResource Conv.BoolToVis}, FallbackValue=Collapsed}" />
-        <MenuItem Header="Yeniden tara" Icon="{StaticResource Icon.Refresh}"
+        <MenuItem Header="{loc:Text Rescan}" Icon="{StaticResource Icon.Refresh}"
                   Visibility="{Binding PlacementTarget.DataContext.IsDirectory, RelativeSource={RelativeSource AncestorType=ContextMenu}, Converter={StaticResource Conv.BoolToVis}, FallbackValue=Collapsed}"
                   Command="{Binding PlacementTarget.Tag.RescanFolderCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                   CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
         <Separator />
-        <MenuItem Header="Geri dÃ¶nÃ¼ÅŸÃ¼m kutusuna taÅŸÄ±" Icon="{StaticResource Icon.Recycle}" InputGestureText="Del"
+        <MenuItem Header="{loc:Text Recycle}" Icon="{StaticResource Icon.Recycle}" InputGestureText="Del"
                   Command="{Binding PlacementTarget.Tag.RecycleCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                   CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
-        <MenuItem Header="KalÄ±cÄ± sil" Icon="{StaticResource Icon.Delete}" InputGestureText="Shift+Del" Style="{StaticResource MenuItem.Danger}"
+        <MenuItem Header="{loc:Text DeletePermanent}" Icon="{StaticResource Icon.Delete}" InputGestureText="Shift+Del" Style="{StaticResource MenuItem.Danger}"
                   Command="{Binding PlacementTarget.Tag.DeletePermanentCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                   CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
     </ContextMenu>
 
     <!-- En buyuk dosyalar: ayni menu, "Yeniden tara" yok -->
     <ContextMenu x:Key="TopFileContextMenu">
-        <MenuItem Header="Explorer'da aÃ§" Icon="{StaticResource Icon.Explorer}"
+        <MenuItem Header="{loc:Text OpenExplorer}" Icon="{StaticResource Icon.Explorer}"
                   Command="{Binding PlacementTarget.Tag.OpenInExplorerCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                   CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
-        <MenuItem Header="Terminalde aÃ§" Icon="{StaticResource Icon.Terminal}"
+        <MenuItem Header="{loc:Text OpenTerminal}" Icon="{StaticResource Icon.Terminal}"
                   Command="{Binding PlacementTarget.Tag.OpenTerminalCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                   CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
-        <MenuItem Header="Yolu kopyala" Icon="{StaticResource Icon.Copy}"
+        <MenuItem Header="{loc:Text CopyPath}" Icon="{StaticResource Icon.Copy}"
                   Command="{Binding PlacementTarget.Tag.CopyPathCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                   CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
         <Separator />
-        <MenuItem Header="Geri dÃ¶nÃ¼ÅŸÃ¼m kutusuna taÅŸÄ±" Icon="{StaticResource Icon.Recycle}" InputGestureText="Del"
+        <MenuItem Header="{loc:Text Recycle}" Icon="{StaticResource Icon.Recycle}" InputGestureText="Del"
                   Command="{Binding PlacementTarget.Tag.RecycleCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                   CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
-        <MenuItem Header="KalÄ±cÄ± sil" Icon="{StaticResource Icon.Delete}" InputGestureText="Shift+Del" Style="{StaticResource MenuItem.Danger}"
+        <MenuItem Header="{loc:Text DeletePermanent}" Icon="{StaticResource Icon.Delete}" InputGestureText="Shift+Del" Style="{StaticResource MenuItem.Danger}"
                   Command="{Binding PlacementTarget.Tag.DeletePermanentCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                   CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
     </ContextMenu>

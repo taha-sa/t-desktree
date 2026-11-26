@@ -1,3 +1,4 @@
+using AmberTree.Localization;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,12 +20,12 @@ public class TreeStatistics
 /// </summary>
 public static class TreeMaintenance
 {
-    public const string NoExtensionLabel = "[Uzantısız]";
+    public static string NoExtensionLabel => Strings.NoExtension;
 
-    public static readonly string[] AgeRangeNames =
-    {
-        "1 aydan yeni", "1 - 3 ay", "3 - 6 ay", "6 - 12 ay", "1 yıldan eski"
-    };
+    public static string[] AgeRangeNames =>
+    [
+        Strings.AgeUnderMonth, Strings.Age1to3, Strings.Age3to6, Strings.Age6to12, Strings.AgeOverYear
+    ];
 
     /// <summary>Dugumu ebeveyninden cikarir ve ust zincirin toplamlarini dusurur. Kok cikarilamaz.</summary>
     public static bool RemoveFromTree(FsItem item)

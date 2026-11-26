@@ -1,6 +1,7 @@
 <UserControl x:Class="AmberTree.Views.SummaryStrip"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:loc="clr-namespace:AmberTree.Localization"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              Focusable="False">
     <UserControl.Resources>
         <Style x:Key="Stat.Label" TargetType="TextBlock" BasedOn="{StaticResource Text.Muted}" />
@@ -22,36 +23,36 @@
 
             <StackPanel Orientation="Horizontal">
                 <StackPanel Margin="0,0,20,0">
-                    <TextBlock Text="Toplam boyut" Style="{StaticResource Stat.Label}" />
+                    <TextBlock Text="{loc:Text TotalSize}" Style="{StaticResource Stat.Label}" />
                     <TextBlock Text="{Binding TotalSizeDisplay}" Style="{StaticResource Stat.Value}" />
                 </StackPanel>
                 <StackPanel Margin="0,0,20,0">
-                    <TextBlock Text="Diskte" Style="{StaticResource Stat.Label}" />
+                    <TextBlock Text="{loc:Text OnDisk}" Style="{StaticResource Stat.Label}" />
                     <TextBlock Text="{Binding TotalAllocatedDisplay}" Style="{StaticResource Stat.Value}" />
                 </StackPanel>
                 <StackPanel Margin="0,0,20,0">
-                    <TextBlock Text="Dosya" Style="{StaticResource Stat.Label}" />
+                    <TextBlock Text="{loc:Text File}" Style="{StaticResource Stat.Label}" />
                     <TextBlock Text="{Binding TotalFilesDisplay}" Style="{StaticResource Stat.Value}" />
                 </StackPanel>
                 <StackPanel Margin="0,0,20,0">
-                    <TextBlock Text="Klasör" Style="{StaticResource Stat.Label}" />
+                    <TextBlock Text="{loc:Text Folder}" Style="{StaticResource Stat.Label}" />
                     <TextBlock Text="{Binding TotalFoldersDisplay}" Style="{StaticResource Stat.Value}" />
                 </StackPanel>
                 <StackPanel Margin="0,0,20,0">
-                    <TextBlock Text="Süre" Style="{StaticResource Stat.Label}" />
+                    <TextBlock Text="{loc:Text Duration}" Style="{StaticResource Stat.Label}" />
                     <TextBlock Text="{Binding ScanDurationDisplay}" Style="{StaticResource Stat.Value}" />
                 </StackPanel>
             </StackPanel>
 
             <!-- Disk doluluk -->
             <StackPanel Grid.Column="1" Margin="0,0,20,0" VerticalAlignment="Center"
-                        ToolTip="Taranan sürücünün doluluk durumu">
+                        ToolTip="{loc:Text DriveUsage}">
                 <Grid>
                     <TextBlock Style="{StaticResource Text.Caption}" TextTrimming="CharacterEllipsis">
-                        <Run Text="Disk:" /> <Run Text="{Binding DriveUsedDisplay, Mode=OneWay}" FontFamily="{DynamicResource Font.Mono}" /> <Run Text="/" /> <Run Text="{Binding DriveTotalDisplay, Mode=OneWay}" FontFamily="{DynamicResource Font.Mono}" /> <Run Text="dolu" />
+                        <Run Text="{loc:Text DiskLabel}" /> <Run Text="{Binding DriveUsedDisplay, Mode=OneWay}" FontFamily="{DynamicResource Font.Mono}" /> <Run Text="/" /> <Run Text="{Binding DriveTotalDisplay, Mode=OneWay}" FontFamily="{DynamicResource Font.Mono}" /> <Run Text="{loc:Text Used}" />
                     </TextBlock>
                     <TextBlock Style="{StaticResource Text.Caption}" HorizontalAlignment="Right">
-                        <Run Text="{Binding DriveFreeDisplay, Mode=OneWay}" FontFamily="{DynamicResource Font.Mono}" /> <Run Text="boş" />
+                        <Run Text="{Binding DriveFreeDisplay, Mode=OneWay}" FontFamily="{DynamicResource Font.Mono}" /> <Run Text="{loc:Text Free}" />
                     </TextBlock>
                 </Grid>
                 <ProgressBar Value="{Binding DriveUsedPercent, Mode=OneWay}" Height="6" MinHeight="6" Margin="0,6,0,0" />
@@ -59,11 +60,11 @@
 
             <!-- Birim secici -->
             <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                <TextBlock Text="Birim" Style="{StaticResource Text.Muted}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                <TextBlock Text="{loc:Text Unit}" Style="{StaticResource Text.Muted}" VerticalAlignment="Center" Margin="0,0,8,0" />
                 <Border Background="{DynamicResource Brush.Bg.Base}" BorderBrush="{DynamicResource Brush.Border.Default}"
                         BorderThickness="1" CornerRadius="6" Padding="2">
                     <StackPanel Orientation="Horizontal">
-                        <RadioButton Style="{StaticResource Unit.Radio}" Content="Oto" GroupName="Unit"
+                        <RadioButton Style="{StaticResource Unit.Radio}" Content="{loc:Text Auto}" GroupName="Unit"
                                      IsChecked="{Binding CurrentUnitMode, Converter={StaticResource Conv.EnumEq}, ConverterParameter=Auto, Mode=OneWay}"
                                      Command="{Binding SetUnitModeCommand}" CommandParameter="Auto" />
                         <RadioButton Style="{StaticResource Unit.Radio}" Content="MB" GroupName="Unit"
@@ -72,7 +73,7 @@
                         <RadioButton Style="{StaticResource Unit.Radio}" Content="GB" GroupName="Unit"
                                      IsChecked="{Binding CurrentUnitMode, Converter={StaticResource Conv.EnumEq}, ConverterParameter=GB, Mode=OneWay}"
                                      Command="{Binding SetUnitModeCommand}" CommandParameter="GB" />
-                        <RadioButton Style="{StaticResource Unit.Radio}" Content="Bayt" GroupName="Unit"
+                        <RadioButton Style="{StaticResource Unit.Radio}" Content="{loc:Text Bytes}" GroupName="Unit"
                                      IsChecked="{Binding CurrentUnitMode, Converter={StaticResource Conv.EnumEq}, ConverterParameter=Bytes, Mode=OneWay}"
                                      Command="{Binding SetUnitModeCommand}" CommandParameter="Bytes" />
                     </StackPanel>

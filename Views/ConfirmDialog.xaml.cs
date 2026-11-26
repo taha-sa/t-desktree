@@ -1,3 +1,4 @@
+using AmberTree.Localization;
 using System.Windows;
 
 namespace AmberTree.Views;
@@ -13,7 +14,7 @@ public partial class ConfirmDialog : Window
         if (isDanger)
         {
             ConfirmButton.Style = (Style)FindResource("Button.Danger");
-            ConfirmButton.Content = "Sil";
+            ConfirmButton.Content = Strings.Delete;
             IconGlyph.Text = (string)FindResource("Icon.Delete");
             IconGlyph.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, "Brush.Danger");
             IconBorder.SetResourceReference(System.Windows.Controls.Border.BackgroundProperty, "Brush.Danger.Soft");
@@ -21,7 +22,7 @@ public partial class ConfirmDialog : Window
         else
         {
             ConfirmButton.Style = (Style)FindResource("Button.Primary");
-            ConfirmButton.Content = "Evet";
+            ConfirmButton.Content = Strings.Yes;
             IconGlyph.Text = (string)FindResource("Icon.Info");
             IconGlyph.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, "Brush.Accent");
             IconBorder.SetResourceReference(System.Windows.Controls.Border.BackgroundProperty, "Brush.Accent.Soft");

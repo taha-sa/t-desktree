@@ -1,3 +1,4 @@
+using AmberTree.Localization;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -74,7 +75,11 @@ public class TreemapCanvas : Canvas
         FocusVisualStyle = null;
         SetResourceReference(BackgroundProperty, "Brush.Bg.Base");
         SizeChanged += (_, _) => RebuildTreemap();
-        Loaded += (_, _) => ThemeService.Current.ThemeChanged += OnThemeChanged;
+        Loaded += (_, _) =>
+        {
+            ThemeService.Current.ThemeChanged -= OnThemeChanged;
+            ThemeService.Current.ThemeChanged += OnThemeChanged;
+        };
         Unloaded += (_, _) =>
         {
             ThemeService.Current.ThemeChanged -= OnThemeChanged;
@@ -201,7 +206,7 @@ public class TreemapCanvas : Canvas
             DataContext = item,
             Tag = DataContext,
             ContextMenu = TileContextMenu,
-            ToolTip = $"{item.Name}\nBoyut: {item.SizeDisplay}\nDiskte: {item.AllocatedSizeDisplay}\nDosya: {item.FileCount:N0}   Klasör: {item.FolderCount:N0}\n{item.FullPath}"
+            ToolTip = Strings.Format(Strings.TreemapTooltip, item.Name, item.SizeDisplay, item.AllocatedSizeDisplay, item.FileCount, item.FolderCount, item.FullPath)
         };
 
         border.MouseEnter += (_, _) =>
@@ -298,66 +303,73 @@ public class TreemapCanvas : Canvas
         double totalArea = bounds.Width * bounds.Height;
         var areas = items.Select(it => Math.Max(0.001, (double)it.Size / totalSize * totalArea)).ToList();
 
-        SquarifyRecursive(items, areas, bounds, result);
+        int idx = 0;
+        while (idx < items.Count && bounds.Width > 0 && bounds.Height > 0)
+        {
+            int remaining = items.Count - idx;
+            if (remaining == 1)
+            {
+                result.Add((items[idx], bounds));
+                break;
+            }
+
+            bool horizontal = bounds.Width >= bounds.Height;
+            double sideLength = horizontal ? bounds.Height : bounds.Width;
+            if (sideLength <= 0) break;
+
+            int rowCount = 1;
+            double currentWorst = WorstAspect(areas, idx, rowCount, sideLength);
+
+            while (rowCount < remaining)
+            {
+                double nextWorst = WorstAspect(areas, idx, rowCount + 1, sideLength);
+                if (nextWorst > currentWorst) break;
+                currentWorst = nextWorst;
+                rowCount++;
+            }
+
+            double rowAreaSum = 0;
+            for (int i = 0; i < rowCount; i++) rowAreaSum += areas[idx + i];
+
+            double rowBreadth = rowAreaSum / sideLength;
+            if (rowBreadth <= 0 || double.IsNaN(rowBreadth) || double.IsInfinity(rowBreadth)) break;
+
+            double offset = 0;
+            for (int i = 0; i < rowCount; i++)
+            {
+                double itemLength = areas[idx + i] / rowBreadth;
+                if (itemLength < 0 || double.IsNaN(itemLength) || double.IsInfinity(itemLength)) continue;
+                Rect itemRect = horizontal
+                    ? new Rect(bounds.X, bounds.Y + offset, rowBreadth, itemLength)
+                    : new Rect(bounds.X + offset, bounds.Y, itemLength, rowBreadth);
+
+                result.Add((items[idx + i], itemRect));
+                offset += itemLength;
+            }
+
+            bounds = horizontal
+                ? new Rect(bounds.X + rowBreadth, bounds.Y, Math.Max(0, bounds.Width - rowBreadth), bounds.Height)
+                : new Rect(bounds.X, bounds.Y + rowBreadth, bounds.Width, Math.Max(0, bounds.Height - rowBreadth));
+
+            idx += rowCount;
+        }
         return result;
     }
 
-    private void SquarifyRecursive(List<FsItem> items, List<double> areas, Rect bounds, List<(FsItem, Rect)> result)
+    private static double WorstAspect(List<double> areas, int start, int count, double length)
     {
-        if (items.Count == 0 || bounds.Width <= 0 || bounds.Height <= 0) return;
-
-        if (items.Count == 1)
+        if (count <= 0 || length <= 0) return double.MaxValue;
+        double sum = 0;
+        double max = double.MinValue;
+        double min = double.MaxValue;
+        for (int i = 0; i < count; i++)
         {
-            result.Add((items[0], bounds));
-            return;
+            double a = areas[start + i];
+            sum += a;
+            if (a > max) max = a;
+            if (a < min) min = a;
         }
-
-        bool horizontal = bounds.Width >= bounds.Height;
-        double sideLength = horizontal ? bounds.Height : bounds.Width;
-
-        int rowCount = 1;
-        double currentWorst = WorstAspect(areas.Take(rowCount).ToList(), sideLength);
-
-        while (rowCount < items.Count)
-        {
-            double nextWorst = WorstAspect(areas.Take(rowCount + 1).ToList(), sideLength);
-            if (nextWorst > currentWorst) break;
-            currentWorst = nextWorst;
-            rowCount++;
-        }
-
-        var rowItems = items.Take(rowCount).ToList();
-        var rowAreas = areas.Take(rowCount).ToList();
-        double rowAreaSum = rowAreas.Sum();
-
-        double rowBreadth = rowAreaSum / sideLength;
-        double offset = 0;
-
-        foreach (var (item, area) in rowItems.Zip(rowAreas))
-        {
-            double itemLength = area / rowBreadth;
-            Rect itemRect = horizontal
-                ? new Rect(bounds.X, bounds.Y + offset, rowBreadth, itemLength)
-                : new Rect(bounds.X + offset, bounds.Y, itemLength, rowBreadth);
-
-            result.Add((item, itemRect));
-            offset += itemLength;
-        }
-
-        Rect remainingBounds = horizontal
-            ? new Rect(bounds.X + rowBreadth, bounds.Y, Math.Max(0, bounds.Width - rowBreadth), bounds.Height)
-            : new Rect(bounds.X, bounds.Y + rowBreadth, bounds.Width, Math.Max(0, bounds.Height - rowBreadth));
-
-        SquarifyRecursive(items.Skip(rowCount).ToList(), areas.Skip(rowCount).ToList(), remainingBounds, result);
-    }
-
-    private double WorstAspect(List<double> areas, double length)
-    {
-        if (areas.Count == 0 || length <= 0) return double.MaxValue;
-        double sum = areas.Sum();
-        if (sum <= 0) return double.MaxValue;
-        double max = areas.Max();
-        double min = areas.Min();
+        if (sum <= 0 || min <= 0) return double.MaxValue;
         double lengthSq = length * length;
         double sumSq = sum * sum;
         return Math.Max((lengthSq * max) / sumSq, sumSq / (lengthSq * min));

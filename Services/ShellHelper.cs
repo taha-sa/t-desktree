@@ -1,3 +1,4 @@
+using AmberTree.Localization;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -17,24 +18,31 @@ public static class ShellHelper
         error = null;
         try
         {
+            if (string.IsNullOrWhiteSpace(path) || path.IndexOfAny(['"', '\0']) >= 0)
+            {
+                error = Strings.PathMissing + path;
+                return false;
+            }
             if (File.Exists(path))
             {
-                Process.Start("explorer.exe", $"/select,\"{path}\"");
+                Process.Start("explorer.exe", $"/select,\"{path.TrimEnd('\\')}\"")?.Dispose();
             }
             else if (Directory.Exists(path))
             {
-                Process.Start("explorer.exe", $"\"{path}\"");
+                var psi = new ProcessStartInfo("explorer.exe");
+                psi.ArgumentList.Add(path);
+                Process.Start(psi)?.Dispose();
             }
             else
             {
-                error = "Yol bulunamadı: " + path;
+                error = Strings.PathMissing + path;
                 return false;
             }
             return true;
         }
         catch (Exception ex)
         {
-            error = "Gezginde açılamadı: " + ex.Message;
+            error = Strings.ExplorerFailed + ex.Message;
             return false;
         }
     }
@@ -56,7 +64,7 @@ public static class ShellHelper
         }
         catch (Exception ex)
         {
-            error = "Komut istemi açılamadı: " + ex.Message;
+            error = Strings.TerminalFailed + ex.Message;
             return false;
         }
     }
@@ -71,7 +79,7 @@ public static class ShellHelper
         }
         catch (Exception ex)
         {
-            error = "Panoya kopyalanamadı: " + ex.Message;
+            error = Strings.ClipboardFailed + ex.Message;
             return false;
         }
     }
@@ -91,11 +99,11 @@ public static class ShellHelper
                 Directory.Delete(path, true);
                 return true;
             }
-            error = "Yol bulunamadı: " + path;
+            error = Strings.PathMissing + path;
         }
         catch (Exception ex)
         {
-            error = "Silinemedi: " + ex.Message;
+            error = Strings.DeleteError + ex.Message;
         }
         return false;
     }

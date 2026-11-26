@@ -3,6 +3,7 @@ using System.IO;
 using System.Text;
 using System.Text.Json;
 using AmberTree.Models;
+using AmberTree.Localization;
 
 namespace AmberTree.Services;
 
@@ -10,24 +11,24 @@ public static class ExportService
 {
     public static void ExportToCsv(FsItem root, string destinationPath)
     {
-        var sb = new StringBuilder();
-        sb.AppendLine("Level,Name,Path,Type,Size (Bytes),Allocated (Bytes),% of Parent,% of Total,Files,Folders,Last Modified,Attributes");
+        using var writer = new StreamWriter(destinationPath, false, Encoding.UTF8);
+        writer.WriteLine("Level,Name,Path,Type,Size (Bytes),Allocated (Bytes),% of Parent,% of Total,Files,Folders,Last Modified,Attributes");
 
-        void WriteNode(FsItem item, int level)
+        var stack = new Stack<(FsItem item, int level)>();
+        stack.Push((root, 0));
+        while (stack.Count > 0)
         {
+            var (item, level) = stack.Pop();
             string type = item.IsDirectory ? "Directory" : "File";
             string name = EscapeCsv(item.Name);
             string path = EscapeCsv(item.FullPath);
-            sb.AppendLine($"{level},{name},{path},{type},{item.Size},{item.AllocatedSize},{item.PercentOfParent:F2}%,{item.PercentOfTotal:F2}%,{item.FileCount},{item.FolderCount},{item.LastModified:yyyy-MM-dd HH:mm:ss},{item.AttributesDisplay}");
+            writer.WriteLine(FormattableString.Invariant($"{level},{name},{path},{type},{item.Size},{item.AllocatedSize},{item.PercentOfParent:F2}%,{item.PercentOfTotal:F2}%,{item.FileCount},{item.FolderCount},{item.LastModified:yyyy-MM-dd HH:mm:ss},{item.AttributesDisplay}"));
 
-            foreach (var child in item.Children)
+            for (int i = item.Children.Count - 1; i >= 0; i--)
             {
-                WriteNode(child, level + 1);
+                stack.Push((item.Children[i], level + 1));
             }
         }
-
-        WriteNode(root, 0);
-        File.WriteAllText(destinationPath, sb.ToString(), Encoding.UTF8);
     }
 
     public static void ExportToJson(ScanResult result, string destinationPath)
@@ -37,47 +38,50 @@ public static class ExportService
             WriteIndented = true,
             ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles
         };
-        string json = JsonSerializer.Serialize(result, options);
-        File.WriteAllText(destinationPath, json, Encoding.UTF8);
+        using var stream = File.Create(destinationPath);
+        JsonSerializer.Serialize(stream, result, options);
     }
 
     public static void ExportToTxt(FsItem root, string destinationPath)
     {
-        var sb = new StringBuilder();
-        sb.AppendLine("===============================================================================");
-        sb.AppendLine($" AmberTree Scan Report — {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-        sb.AppendLine($" Root: {root.FullPath}");
-        sb.AppendLine($" Total Size: {FormatSize(root.Size)} ({root.Size:N0} bytes)");
-        sb.AppendLine($" Total Allocated: {FormatSize(root.AllocatedSize)} ({root.AllocatedSize:N0} bytes)");
-        sb.AppendLine($" Total Files: {root.FileCount:N0} | Total Folders: {root.FolderCount:N0}");
-        sb.AppendLine("===============================================================================");
-        sb.AppendLine();
+        using var writer = new StreamWriter(destinationPath, false, Encoding.UTF8);
+        writer.WriteLine("===============================================================================");
+        writer.WriteLine(Strings.Format(Strings.ScanReport, DateTime.Now));
+        writer.WriteLine(Strings.Format(Strings.ReportRoot, root.FullPath));
+        writer.WriteLine(Strings.Format(Strings.ReportSize, FormatSize(root.Size), root.Size));
+        writer.WriteLine(Strings.Format(Strings.ReportAllocated, FormatSize(root.AllocatedSize), root.AllocatedSize));
+        writer.WriteLine(Strings.Format(Strings.ReportCounts, root.FileCount, root.FolderCount));
+        writer.WriteLine("===============================================================================");
+        writer.WriteLine();
 
-        void PrintTree(FsItem item, string indent, bool isLast)
+        var stack = new Stack<(FsItem item, string indent, bool isLast)>();
+        stack.Push((root, "", true));
+        while (stack.Count > 0)
         {
+            var (item, indent, isLast) = stack.Pop();
             string marker = isLast ? "└── " : "├── ";
             string sizeStr = FormatSize(item.Size).PadLeft(10);
             string pctStr = $"{item.PercentOfParent:F1}%".PadLeft(6);
-            sb.AppendLine($"{indent}{marker}[{sizeStr} | {pctStr}] {item.Name}");
+            writer.WriteLine($"{indent}{marker}[{sizeStr} | {pctStr}] {item.Name}");
 
             string childIndent = indent + (isLast ? "    " : "│   ");
-            for (int i = 0; i < item.Children.Count; i++)
+            for (int i = item.Children.Count - 1; i >= 0; i--)
             {
-                PrintTree(item.Children[i], childIndent, i == item.Children.Count - 1);
+                stack.Push((item.Children[i], childIndent, i == item.Children.Count - 1));
             }
         }
-
-        PrintTree(root, "", true);
-        File.WriteAllText(destinationPath, sb.ToString(), Encoding.UTF8);
     }
 
     private static string EscapeCsv(string val)
     {
-        if (val.Contains(',') || val.Contains('"') || val.Contains('\n'))
+        if (string.IsNullOrEmpty(val)) return string.Empty;
+        // Neutralize spreadsheet formula injection on leading =, +, -, @, tab, CR.
+        string safe = val[0] is '=' or '+' or '-' or '@' or '\t' or '\r' ? "'" + val : val;
+        if (safe.IndexOfAny([',', '"', '\n', '\r']) >= 0)
         {
-            return $"\"{val.Replace("\"", "\"\"")}\"";
+            return $"\"{safe.Replace("\"", "\"\"")}\"";
         }
-        return val;
+        return safe;
     }
 
     private static string FormatSize(long bytes)
@@ -85,7 +89,7 @@ public static class ExportService
         string[] suffixes = { "B", "KB", "MB", "GB", "TB" };
         int counter = 0;
         decimal number = bytes;
-        while (Math.Round(number / 1024) >= 1)
+        while (counter < suffixes.Length - 1 && Math.Round(number / 1024) >= 1)
         {
             number /= 1024;
             counter++;

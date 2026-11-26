@@ -1,3 +1,4 @@
+using AmberTree.Localization;
 using System;
 using System.Diagnostics;
 using System.Windows;
@@ -15,6 +16,9 @@ public partial class AboutDialog : Window
     public AboutDialog()
     {
         InitializeComponent();
+        LanguageBox.ItemsSource = new[] { Strings.SystemLanguage, "Türkçe", "English", "Deutsch" };
+        LanguageBox.SelectedIndex = Array.IndexOf(LanguagePreference.Languages, LanguagePreference.Read());
+        BridgeButton.Content = Services.BridgeInvitation.InstalledPath() == null ? Strings.GetBridge : Strings.OpenBridge;
         MaxHeight = SystemParameters.WorkArea.Height;
         MaxWidth = SystemParameters.WorkArea.Width;
         VersionText.Text = $"v{Services.UpdateBannerViewModel.CurrentVersion} · {RuntimeInformation.ProcessArchitecture}";
@@ -33,8 +37,8 @@ public partial class AboutDialog : Window
     private sealed record FamilyApp(string Id, string Name, string Status, bool Installed)
     {
         public string Icon => $"/T-DeskTree;component/Assets/Family/{Id}.png";
-        public string DownloadUrl => $"https://github.com/taha-sa/{Id}-releases/releases/latest";
-        public string DownloadLabel => $"{Name} edinin";
+        public string DownloadUrl => $"https://github.com/taha-sa/{(Id == "t-desk-viewer" ? "tdesk-viewer" : Id)}-releases/releases/latest";
+        public string DownloadLabel => Strings.Format(Strings.GetNamedApp, Name);
         public Visibility DownloadVisibility => Installed ? Visibility.Collapsed : Visibility.Visible;
     }
 
@@ -51,7 +55,7 @@ public partial class AboutDialog : Window
             var manifest = registry.Read(app.Item1);
             bool installed = current || (manifest != null && File.Exists(manifest.ExePath));
             string version = current ? Services.UpdateBannerViewModel.CurrentVersion : manifest?.Version ?? "";
-            string status = current ? "Bu uygulama" : installed ? "Yüklü" : "Yüklü değil";
+            string status = current ? Strings.CurrentApp : installed ? Strings.Installed : Strings.NotInstalled;
             if (installed && !string.IsNullOrWhiteSpace(version)) status += " · " + version;
             return new FamilyApp(app.Item1, app.Item2, status, installed);
         }).ToArray();
@@ -67,20 +71,48 @@ public partial class AboutDialog : Window
         catch (Exception ex) { TSuite.Diagnostics.Log.Error("Could not copy diagnostics", ex); }
     }
 
+    private void Language_Changed(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (!IsLoaded || LanguageBox.SelectedIndex < 0) return;
+        try
+        {
+            LanguagePreference.Save(LanguagePreference.Languages[LanguageBox.SelectedIndex]);
+            MessageBox.Show(this, Strings.RestartLanguage, Strings.Language, MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, Strings.SettingSaveFailed + ex.Message, "T-DeskTree", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void Bridge_Click(object sender, RoutedEventArgs e)
+    {
+        Services.BridgeInvitation.Show(this);
+        BridgeButton.Content = Services.BridgeInvitation.InstalledPath() == null ? Strings.GetBridge : Strings.OpenBridge;
+    }
+
     private void StartWithWindows_Click(object sender, RoutedEventArgs e)
     {
         try
         {
             using var key = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run");
             if (StartWithWindowsCheckBox.IsChecked == true)
-                key.SetValue("T-DeskTree", $"\"{Environment.ProcessPath}\" --background");
+            {
+                var exe = Environment.ProcessPath;
+                if (string.IsNullOrWhiteSpace(exe))
+                {
+                    StartWithWindowsCheckBox.IsChecked = false;
+                    return;
+                }
+                key.SetValue("T-DeskTree", $"\"{exe}\" --background");
+            }
             else
                 key.DeleteValue("T-DeskTree", false);
         }
         catch (Exception ex)
         {
             StartWithWindowsCheckBox.IsChecked = StartWithWindowsCheckBox.IsChecked != true;
-            MessageBox.Show($"Ba?lang?? ayar? kaydedilemedi: {ex.Message}", "T-DeskTree", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(Strings.Format(Strings.StartupSaveFailed, ex.Message), "T-DeskTree", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 
@@ -91,7 +123,7 @@ public partial class AboutDialog : Window
         {
             TSuite.Diagnostics.Log.Error("Could not save crash reporting preference", ex);
             AutoReportsCheckBox.IsChecked = TSuite.Diagnostics.CrashReporter.AutomaticallyPrepareReports;
-            MessageBox.Show("Ayar kaydedilemedi: " + ex.Message, "T-DeskTree", MessageBoxButton.OK, MessageBoxImage.Warning);
+            MessageBox.Show(Strings.SettingSaveFailed + ex.Message, "T-DeskTree", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 
@@ -105,11 +137,17 @@ public partial class AboutDialog : Window
         Close();
     }
 
+    private void Legal_Click(object sender, RoutedEventArgs e) => new LegalDialog { Owner = this }.ShowDialog();
+
     private void Hyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e)
     {
         try
         {
-            Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true });
+            if (e.Uri is { IsAbsoluteUri: true } &&
+                (e.Uri.Scheme == Uri.UriSchemeHttps || e.Uri.Scheme == Uri.UriSchemeHttp))
+            {
+                Process.Start(new ProcessStartInfo(e.Uri.AbsoluteUri) { UseShellExecute = true })?.Dispose();
+            }
         }
         catch { }
         e.Handled = true;
